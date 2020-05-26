@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+#
+# File: ./bin/console
+
+puts "Regular Console..."
+require_relative("../src/main")
+
+Pry.start
