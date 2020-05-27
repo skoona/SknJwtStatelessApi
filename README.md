@@ -9,12 +9,24 @@ object carries [JWT Scopes and Claims](https://auth0.com/docs/scopes/current/sam
 
 While minimal; this app is operational and contains a rack filter component, and two roda-based rack 
 applications.  One which produces JWT's, and the other providing Money operations like view, 
-add, and remove money from a in-memory account by user.
+add, and remove money from a [PStore](https://ruby-doc.org/stdlib-2.2.1/libdoc/yaml/rdoc/YAML/Store.html) account by user.
+
+            *Implementation example of a Stateless and JWT Secured API, Ruby programming.*
 
 #### Existing Credentials
     username: `emuser`           username: `emkeeper`               username: `emowner`          
     password: `emuser pwd`       password: `emkeeper pwd`           password: `emowner pwd`
     scopes: `view_money`     scopes: `view_money, add_money`    scopes: `view_money, add_money, remove_money`
+
+
+#### Runtime Model
+```text
+WebServer
+├── Rack
+    ├─────[/...]──[Authenticator App]:public
+    └─────[/api/v1/...]──[JWT Validator/Filter]──[Money Demo App]:secured
+ 
+```
 
 #### Paths
     Public                                       ANY <host:port>/status           Application Runtime Metrics
@@ -47,7 +59,7 @@ add, and remove money from a in-memory account by user.
 8. `Stateless` does not require a logoff
 
 ## Installation
-SknJwtStateless requires two environment variables to be set before any executions; use your own values.  
+Benefits from two environment variables as overrides to the /config/settings.yml application settings; use your own values.  
 ```ruby
 ENV['JWT_ISSUER'] = 'skoona.net'
 ENV['JWT_SECRET'] = 'sknSuperSecrets'
@@ -63,6 +75,19 @@ ENV['JWT_SECRET'] = 'sknSuperSecrets'
     <dt>Start Console with RackSh:</dt>
         <dd><code>$ bundle exec racksh</code></dd>
 </dl>
+
+### Core Technology
+* Ruby 2.6+
+* [Rack](https://github.com/rack/rack)
+    * Web Server Interface and Runner
+* [Roda](https://github.com/jeremyevans/roda)
+    * Rack-based Web Framework (Best Available!)
+* [SknUtils](https://github.com/skoona/skn_utils) 
+    * Common utilities, dependencyInjection, Configuration, Application Supports
+* [JWT](https://github.com/jwt/ruby-jwt)
+    * Jason Web Token, security token influenced by [JWT Scopes and Claims](https://auth0.com/docs/scopes/current/sample-use-cases#authenticate-a-user-and-request-standard-claims)
+* [PStore](https://ruby-doc.org/stdlib-2.2.1/libdoc/yaml/rdoc/YAML/Store.html)
+    * Yaml file database for local user/account persistence
 
 ## File Tree
 ```text
