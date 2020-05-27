@@ -1,8 +1,15 @@
 #!/usr/bin/env ruby
 #
+# ENV['JWT_ISSUER']
+# ENV['JWT_SECRET']
+# ENV['JWT_ACCOUNTS_STORE']
+# ENV['JWT_REGISTRATION_STORE']
+# $ JWT_SECRET=sknSuperSecrets JWT_ISSUER=skoona.net be puma -C ./config/puma.rb
+# $ bundle exec puma -C ./config/puma.rb
+#
 # File: ./bin/console
 
 puts "Regular Console..."
-require_relative("../src/main")
+require_relative("../config/boot")
 
 Pry.start

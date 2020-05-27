@@ -24,7 +24,7 @@ ENV['RACK_ENV'] = 'test'
 ENV['JWT_ISSUER'] = 'skoona.net'
 ENV['JWT_SECRET'] = 'sknSuperSecrets'
 
-require './src/main.rb'  # main application with web
+require './config/boot.rb'  # main application with web
 
 require 'rspec'
 require 'rspec-roda'

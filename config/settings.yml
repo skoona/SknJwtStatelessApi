@@ -1,0 +1,53 @@
+---
+Packaging:
+  pgmName: SknJwtStatelessApi
+  releaseVersion: <%= Skn::Version %>
+  isTest: false
+  isDevelopment: false
+  isProduction: false
+  configName: base
+  short_name: jwt
+
+datasources:
+  credentials: <%= ENV.fetch('JWT_REGISTRATION_STORE', "./config/datasources/credentials_store.yml") %>
+  accounts: <%= ENV.fetch('JWT_ACCOUNTS_STORE', "./config/datasources/accounts_store.yml") %>
+
+idp:
+  secret: <%= ENV.fetch('JWT_SECRET', "sknSuperSecrets") %>
+  issuer: <%= ENV.fetch('JWT_ISSUER', "skoona.net") %>
+  :audience:
+    - InternalUseOnly
+
+defaults:
+    :scopes:
+      - view_money
+      - add_money
+    :registrations:
+      emowner:
+        username: emowner
+        password: emowner pwd
+        :scopes:
+          - add_money
+          - view_money
+          - remove_money
+      emkeeper:
+        username: emkeeper
+        password: emkeeper pwd
+        :scopes:
+          - add_money
+          - view_money
+      emuser:
+        username: emuser
+        password: emuser pwd
+        :scopes:
+          - view_money
+    :accounts:
+      emowner:
+        username: emowner
+        balance: 100000
+      emkeeper:
+        username: emkeeper
+        balance: 10000
+      emuser:
+        username: emuser
+        balance: 50000

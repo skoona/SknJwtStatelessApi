@@ -6,9 +6,11 @@ source "https://rubygems.org"
 # Web framework: Core
 gem "puma"
 gem "roda"
-
-# Web framework: JSON
+gem 'logging'
 gem 'json'
+
+# General Utilities
+gem 'skn_utils'
 
 # Web Security
 gem 'jwt'

@@ -1,0 +1,8 @@
+---
+Packaging:
+  isTest: true
+  configName: test
+
+datasources:
+  credentials: ./spec/factories/test_credentials_store.yml
+  accounts: ./spec/factories/test_accounts_store.yml
