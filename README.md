@@ -64,6 +64,61 @@ ENV['JWT_SECRET'] = 'sknSuperSecrets'
         <dd><code>$ bundle exec racksh</code></dd>
 </dl>
 
+## File Tree
+```text
+❯ tree
+.
+├── CODE_OF_CONDUCT.md
+├── Gemfile
+├── Gemfile.lock
+├── LICENSE
+├── README.md
+├── Rakefile
+├── bin
+│   └── console
+├── config
+│   ├── boot.rb
+│   ├── datasources
+│   │   ├── accounts_store.yml
+│   │   └── credentials_store.yml
+│   ├── environment.rb
+│   ├── initializers
+│   │   ├── 00-init_skn_configuraiton.rb
+│   │   ├── 01-init_skn_configurable.rb
+│   │   └── 02-init_logging.rb
+│   ├── puma.rb
+│   ├── settings
+│   │   ├── development.local.yml
+│   │   ├── development.yml
+│   │   ├── production.yml
+│   │   └── test.yml
+│   ├── settings.yml
+│   └── version.rb
+├── config.ru
+├── coverage
+│   └── rspec_results.html
+├── log
+│   └── test-console.log
+├── mains
+│   ├── jwt_auth_filter.rb
+│   ├── jwt_authenticator.rb
+│   ├── jwt_stateless_api.rb
+│   ├── mains.rb
+│   ├── user.rb
+│   └── user_datasource.rb
+├── spec
+│   ├── factories
+│   │   ├── test_accounts_store.yml
+│   │   └── test_credentials_store.yml
+│   ├── mains
+│   │   ├── basic_uri_spec.rb
+│   │   └── user_datasource_spec.rb
+│   └── spec_helper.rb
+└── tmp
+    ├── pids
+    ├── puma.log
+    └── puma.state
+```
 
 ## Contributing
 
