@@ -33,6 +33,7 @@ WebServer
 
     Authorization:Basic <B64(username:password)> ANY <host:port>/authenticate     Validate and return JWT Token
     Authorization:Basic <B64(username:password)> ANY <host:port>/register         Enroll a new user with password
+    Authorization:Basic <B64(username:password)> DELETE <host:port>/unregister    Delete Authenticated User
 
     Authorization:Bearer <token> GET    <host:port>/api/v1/money                  View Balance
     Authorization:Bearer <token> POST   <host:port>/api/v1/money?amount=50        Add amount to Balance

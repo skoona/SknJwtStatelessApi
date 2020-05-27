@@ -2,37 +2,48 @@ class UserDatasource
   include Singleton
   ##
   # Hash with Key for each user
+  # TODO SknHash to SknSuccess/SknFailure
   ##
   SknApp.logger.debug "Entering #{self.name} as Database!"
 
   def register(username, password, roles=false)
+    scopes = (roles || SknSettings.defaults.scopes)
     credentials = {
         username: username,
         password: password,
-        scopes: (roles || SknSettings.defaults.scopes)
+        scopes: scopes
     }
     account = {
         username: username,
         balance: 0
     }
-    credentials_add(credentials)
-    accounts_add(account)
+    if credentials_add(credentials) && accounts_add(account)
+      SknSuccess.({username: username, scopes: scopes},"Registered #{username} with #{scopes} Succeeded!")
+    else
+      SknFailure.({username: username, scopes: scopes}, "Registration of #{username} with #{scopes} failed!")
+    end
   rescue => e
     msg =  "#{self.class.name}##{__method__} Create Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace=#{e.backtrace[0..4]}"
     SknApp.logger.warn(msg)
-    false
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
 
-  def unregister(username)
-    credentials = {username: username}
-    account = {username: username}
-
-    credentials_delete(credentials)
-    accounts_delete(account)
+  def unregister(username, password)
+    options = {username: username, password: password}
+    auth = authenticate!(username, password)
+    if auth.success
+      if credentials_delete(options) && accounts_delete(options)
+        SknSuccess.({username: username, scopes: []},"Unregister #{username} Succeeded!")
+      else
+        SknFailure.({username: username, scopes: []}, "Unregister #{username} failed!")
+      end
+    else
+      auth
+    end
   rescue => e
-    msg =  "#{self.class.name}##{__method__} Create Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace=#{e.backtrace[0..4]}"
+    msg =  "#{self.class.name}##{__method__} Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace=#{e.backtrace[0..4]}"
     SknApp.logger.warn(msg)
-    false
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
 
   # return scopes/roles if valid else nil
@@ -41,20 +52,31 @@ class UserDatasource
     creds = @_credentials[username.to_sym]
     if !!creds && creds[:password].eql?(password)
       value = creds.fetch(:scopes, [])
-      SknHash.new( {scopes: value} )
+      SknSuccess.( {username: username, scopes: value} )
     else
-      nil
+      SknFailure.({username: username, scopes: []}, "Invalid Credentials #{username}")
     end
+  rescue => e
+    msg =  "#{self.class.name}##{__method__} Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace=#{e.backtrace[0..4]}"
+    SknApp.logger.warn(msg)
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
 
   def account_for(username)
     acct = @_accounts[username.to_sym]
-    value = acct.nil? ? 0 : acct.fetch(:balance, 0)
-    SknHash.new( balance: value )
+    if acct.nil?
+      SknFailure.({balance: 0}, "Account Lookup Failed for #{username}" )
+    else
+      SknSuccess.({balance: acct.fetch(:balance, 0)} )
+    end
   end
   def account_update_for(username, new_balance)
     if @_accounts.member?(username.to_sym)
-      accounts_save({username: username, balance: new_balance})
+      if accounts_save({username: username, balance: new_balance})
+        SknSuccess.({username: username, balance: new_balance})
+      else
+        SknFailure.({username: username, balance: new_balance}, "$#{new_balance} Account Update Failed for #{username}")
+      end
     end
   end
 

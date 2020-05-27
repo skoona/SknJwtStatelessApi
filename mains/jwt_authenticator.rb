@@ -3,6 +3,7 @@ class JwtAuthenticator < Roda
 
   plugin :json
   plugin :json_parser
+  plugin :all_verbs
   plugin :halt
 
   plugin :not_found do |req|
@@ -17,6 +18,7 @@ class JwtAuthenticator < Roda
 
   route do |r|
     SknApp.logger.debug("Entering #{self.class.name} Routes via #{r.request_method} #{r.remaining_path}")
+
     r.is "status" do
       SknApp.metadata[:credentials_storage] = File.size?(SknSettings.datasources.credentials)
       SknApp.metadata[:accounts_storage] = File.size?(SknSettings.datasources.accounts)
@@ -25,65 +27,96 @@ class JwtAuthenticator < Roda
     end
 
     r.is "authenticate" do
-      username, scopes = validate_user(request.env)
-      if username
+      res = validate_user(request.env)
+      if res.success
         SknApp.metadata[:authentications] += 1
-        { token: token(username, scopes) }
+        { token: token(res) }
       else
         SknApp.metadata[:auth_failures] += 1
-        r.halt [  Rack::Utils.status_code(:unauthorized), { 'Content-Type' => 'application/json' }, [{error: 'NotAuthenticated', errorDetails: "Valid authentication credentials are required."}.to_json]]
+        r.halt [  Rack::Utils.status_code(:unauthorized), { 'Content-Type' => 'application/json' }, [{error: 'NotAuthenticated', errorDetails: "Valid authentication credentials are required. [#{res.message}]"}.to_json]]
       end
     end
 
     r.is "register" do
-      username = register_user(request.env)
-      if username
+      res = register_user(request.env)
+      if res.success
         response.status = 202
         SknApp.metadata[:registrations] += 1
-        {message: "Registration for #{username} was accepted"}
+        {message: res.message}
       else
         SknApp.metadata[:reg_failures] += 1
-        r.halt [Rack::Utils.status_code(:bad_request), { 'Content-Type' => 'application/json' }, [{error: 'BadRequest', errorDetails: "Authentication credentials required."}.to_json]]
+        r.halt [Rack::Utils.status_code(:bad_request), { 'Content-Type' => 'application/json' }, [{error: 'BadRequest', errorDetails: "Authentication credentials required. [#{res.message}]"}.to_json]]
+      end
+    end
+
+    r.is "unregister" do
+      r.delete do
+        res = unregister_user(request.env)
+        if res.success
+          response.status = 202
+          SknApp.metadata[:registrations] -= 1
+          {message: res.message}
+        else
+          SknApp.metadata[:reg_failures] += 1
+          r.halt [Rack::Utils.status_code(:bad_request), { 'Content-Type' => 'application/json' }, [{error: 'BadRequest', errorDetails: "Authentication credentials required. [#{res.message}]"}.to_json]]
+        end
       end
     end
   end # end route
 
-  def register_user(env)
-    username = nil
+  def unregister_user(env)
+    res = res = SknFailure.({username: "", scopes: []}, "Unregister Failure!")
     auth = Rack::Auth::Basic::Request.new(env)
     if (auth.provided? && auth.basic? && auth.credentials)
       username = auth.credentials[0]
       password = auth.credentials[1]
-      if SknApp.registry.resolve("users-datasource").register(username, password)
-        SknApp.logger.debug("#{__method__}() Registerd NewUser: #{username}")
+      res = SknApp.registry.resolve("users-datasource").unregister(username, password)
+      if res.success
+        SknApp.logger.debug("#{__method__}() #{res.message}")
       end
     end
-    username
+    res
   rescue => e
     SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
-    nil
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+  end
+
+  def register_user(env)
+    res = res = SknFailure.({username: "", scopes: []}, "Registration Failure!")
+    auth = Rack::Auth::Basic::Request.new(env)
+    if (auth.provided? && auth.basic? && auth.credentials)
+      username = auth.credentials[0]
+      password = auth.credentials[1]
+      res = SknApp.registry.resolve("users-datasource").register(username, password)
+      if res.success
+        SknApp.logger.debug("#{__method__}() #{res.message}")
+      end
+    end
+    res
+  rescue => e
+    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
 
   def validate_user(env)
-    username = nil
-    scopes = []
+    res = SknFailure.({username: "", scopes: []}, "Validation Failure!")
     auth = Rack::Auth::Basic::Request.new(env)
     if (auth.provided? && auth.basic? && auth.credentials)
       username = auth.credentials[0]
       password = auth.credentials[1]
-      user_scopes = SknApp.registry.resolve("users-datasource").authenticate!(username, password)
-      username = nil unless user_scopes && user_scopes.scopes? # SknHash
-      scopes = user_scopes && user_scopes.scopes? ? user_scopes.scopes : []
+      res = SknApp.registry.resolve("users-datasource").authenticate!(username, password)
+      username = nil unless res.success # SknSuccess/SknFailure
+      scopes   = res.value[:scopes]
       SknApp.logger.debug("#{__method__}() Known User: #{username} roles: #{scopes}")
     end
-    [username, scopes]
+    res # SknSuccess/SknFailure
   rescue => e
     SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
-    nil
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
 
-  def token(username, scopes)
-    JWT.encode payload(username, scopes), SknSettings.idp.secret, 'HS256'
+  def token(res)
+    JWT.encode payload(res.value[:username], res.value[:scopes]), SknSettings.idp.secret, 'HS256'
   end
 
   def payload(username, scopes)

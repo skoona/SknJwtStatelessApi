@@ -60,12 +60,12 @@ RSpec.describe "Stateless API Responds Correctly. " do
       end
     end
 
-    context "JWT Registration" do
+    context "Register " do
       it "returns http success" do
         authorize('newuser', 'new user pwd')
         post "/register"
         expect(last_response).to be_successful
-        expect(last_response.body).to include("Registration")
+        expect(last_response.body).to include("newuser")
 
         authorize('newuser', 'new user pwd')
         post "/authenticate"
@@ -73,6 +73,24 @@ RSpec.describe "Stateless API Responds Correctly. " do
       end
       it "returns http Unauthorized" do
         post "/register"
+        expect(last_response).to be_bad_request
+      end
+    end
+
+    context "Unregister " do
+      it "returns http success" do
+        authorize('newreg', 'newreg pwd')
+        post "/register"
+        expect(last_response).to be_successful
+        expect(last_response.body).to include("newreg")
+
+        authorize('newreg', 'newreg pwd')
+        delete "/unregister"
+        expect(last_response).to be_successful
+        expect(last_response.body).to include("newreg")
+      end
+      it "returns http Unauthorized" do
+        delete "/unregister"
         expect(last_response).to be_bad_request
       end
     end
