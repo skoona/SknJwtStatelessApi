@@ -1,2 +1,7 @@
 ---
-
+:emkeeper:
+  :username: emkeeper
+  :balance: 10000
+:emuser:
+  :username: emuser
+  :balance: 50000

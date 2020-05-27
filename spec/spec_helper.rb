@@ -24,11 +24,15 @@ ENV['RACK_ENV'] = 'test'
 ENV['JWT_ISSUER'] = 'skoona.net'
 ENV['JWT_SECRET'] = 'sknSuperSecrets'
 
+require 'simplecov'
+
 require './config/boot.rb'  # main application with web
 
 require 'rspec'
 require 'rspec-roda'
 require 'rack/test'
+
+Dir[ "./spec/support/**/*.rb" ].each { |f| require f }
 
 #
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
@@ -59,6 +63,7 @@ RSpec.configure do |config|
   config.tty = false
 
   config.include Rack::Test::Methods
+  config.include JwtHelpers
 
 end
 

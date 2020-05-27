@@ -3,38 +3,30 @@
 # Ref: http://tutorials.jumpstartlab.com/topics/capybara/capybara_with_rack_test.html
 
 RSpec.describe "Stateless API Responds Correctly. " do
-  def authorizing_token(username, password)
-    token = ""
-    authorize(username, password)
-    post "/authenticate" do |response|
-      token = JSON.parse(response.body)["token"]
-    end
-    { Authorization: "Bearer #{token}" }
-  end
 
   RSpec.shared_examples 'Money API with JWT' do
     before :each do
-      header("Authorization", auth_token[:Authorization])
+      apply_user_authentication(auth_token)
     end
     it "GET /api/v1/money succeeds. " do
       get "/api/v1/money"
-      expect(last_response.status).to eq 200
+      expect(last_response).to be_successful
     end
     it "POST /api/v1/money?amount=50 succeeds. " do
       post "/api/v1/money", {params: {amount: 50}}
 
       if :emuser == auth_user
-        expect(last_response.status).to eq 403
+        expect(last_response).to be_forbidden
       else
-        expect(last_response.status).to eq 200
+        expect(last_response).to be_successful
       end
     end
     it "DELETE /api/v1/money?amount=50 succeeds. " do
       delete "/api/v1/money", {params: {amount: 50}}
       if :emowner == auth_user
-        expect(last_response.status).to eq 200
+        expect(last_response).to be_successful
       else
-        expect(last_response.status).to eq 403
+        expect(last_response).to be_forbidden
       end
     end
   end
@@ -42,15 +34,15 @@ RSpec.describe "Stateless API Responds Correctly. " do
   RSpec.shared_examples 'Money API without JWT' do
     it "GET /api/v1/money is not authenticated. " do
       get "/api/v1/money"
-      expect(last_response.status).to eq 401
+      expect(last_response).to be_unauthorized
     end
     it "POST /api/v1/money?amount=50 is not authenticated. " do
       post "/api/v1/money", {params: {amount: 50}}
-      expect(last_response.status).to eq 401
+      expect(last_response).to be_unauthorized
     end
     it "DELETE /api/v1/money?amount=50 is not authenticated. " do
       delete "/api/v1/money", {params: {amount: 50}}
-      expect(last_response.status).to eq 401
+      expect(last_response).to be_unauthorized
     end
   end
 
@@ -59,12 +51,12 @@ RSpec.describe "Stateless API Responds Correctly. " do
       it "returns http success" do
         authorize('emowner', 'emowner pwd')
         post "/authenticate"
-        expect(last_response.status).to eq 200
+        expect(last_response).to be_successful
         expect(last_response.body).to include("token")
       end
       it "returns http Unauthorized" do
         post "/authenticate"
-        expect(last_response.status).to eq 401
+        expect(last_response).to be_unauthorized
       end
     end
 
@@ -72,28 +64,28 @@ RSpec.describe "Stateless API Responds Correctly. " do
       it "returns http success" do
         authorize('newuser', 'new user pwd')
         post "/register"
-        expect(last_response.status).to eq 202
+        expect(last_response).to be_successful
         expect(last_response.body).to include("Registration")
 
         authorize('newuser', 'new user pwd')
         post "/authenticate"
-        expect(last_response.status).to eq 200
+        expect(last_response).to be_successful
       end
       it "returns http Unauthorized" do
         post "/register"
-        expect(last_response.status).to eq 400
+        expect(last_response).to be_bad_request
       end
     end
 
     context "Application Status" do
       it "returns available metrics" do
         post "/status"
-        expect(last_response.status).to eq 200
+        expect(last_response).to be_successful
         expect(last_response.body).to include("timestamp")
       end
       it "returns available metrics on any http verb" do
         get "/status"
-        expect(last_response.status).to eq 200
+        expect(last_response).to be_successful
         puts last_response.body
         expect(last_response.body).to include("timestamp")
       end

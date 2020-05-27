@@ -25,4 +25,5 @@ group :test do
   gem 'rspec'
   gem "rack-test"
   gem 'rspec-roda'
+  gem 'simplecov', :require => false
 end
