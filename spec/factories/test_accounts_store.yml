@@ -1,13 +1,2 @@
 ---
-:emowner:
-  :username: emowner
-  :balance: 100000
-:emkeeper:
-  :username: emkeeper
-  :balance: 10000
-:emuser:
-  :username: emuser
-  :balance: 50000
-:someuser:
-  :username: someuser
-  :balance: 1200
+
