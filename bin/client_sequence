@@ -4,7 +4,7 @@
 #
 
 require 'bundler/setup'
-require './config/version'
+require_relative '../config/version'
 require 'skn_utils'
 
 module SknUtils
@@ -252,7 +252,7 @@ end
 #
 begin
 
-  repeats = 100
+  repeats = (ARGV[0] || "10").to_i
 
   commands =[
       ->(repeats){ExistingUserWorkflow.({users: [], repeats: repeats, money: 100})},

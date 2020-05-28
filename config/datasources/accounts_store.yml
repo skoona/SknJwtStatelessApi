@@ -4,10 +4,19 @@
   :balance: 100240
 :emkeeper:
   :username: emkeeper
-  :balance: 10200
+  :balance: 60200
 :emuser:
   :username: emuser
   :balance: 50000
 :apple:
   :username: apple
   :balance: 1200
+:bmagent:
+  :username: bmagent
+  :balance: 10000
+:bmproducer:
+  :username: bmproducer
+  :balance: 10000
+:bmartist:
+  :username: bmartist
+  :balance: 10000
