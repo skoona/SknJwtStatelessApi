@@ -69,10 +69,12 @@ ENV['JWT_SECRET'] = 'sknSuperSecrets'
 <dl>
     <dt>Install Gems:</dt>
         <dd><code>$ bundle install</code></dd>
-    <dt>Start Server with Puma, Port 8080:</dt>
+    <dt>Start Server with Puma, Port 8585:</dt>
         <dd><code>$ bundle exec puma -C ./config/puma.rb</code></dd>
     <dt>Start Console with Pry:</dt>
         <dd><code>$ bin/console</code></dd>
+    <dt>Stress Test the API: 10=repeats</dt>
+        <dd><code>$ bin/client_sequence 10 </code></dd>
     <dt>Start Console with RackSh:</dt>
         <dd><code>$ bundle exec racksh</code></dd>
 </dl>
@@ -158,3 +160,5 @@ ENV['JWT_SECRET'] = 'sknSuperSecrets'
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
+
+

@@ -4,7 +4,7 @@
   :balance: 100240
 :emkeeper:
   :username: emkeeper
-  :balance: 60200
+  :balance: 171800
 :emuser:
   :username: emuser
   :balance: 50000
@@ -13,10 +13,10 @@
   :balance: 1200
 :bmagent:
   :username: bmagent
-  :balance: 10000
+  :balance: 200
 :bmproducer:
   :username: bmproducer
-  :balance: 10000
+  :balance: 200
 :bmartist:
   :username: bmartist
-  :balance: 10000
+  :balance: 200

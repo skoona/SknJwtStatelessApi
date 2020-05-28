@@ -101,11 +101,11 @@ class CommonElements
   end
 
   def prepare_core_commands(jwt_header, money, repeats)
-    view_cmd   = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money" })
-    add_cmd    = SknUtils::CommandJSONPost.call({headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money", payload: {amount: money} })
-    delete_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money", payload: {amount: (money / 2)} })
-    delete_all_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money", payload: {amount: (repeats * (money / 2))} })
-    stats = SknUtils::CommandJSONGet.call({full_url: "http://jscott5365m.local:8585/status"})
+    view_cmd   = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "http://localhost:8585/api/v1/money" })
+    add_cmd    = SknUtils::CommandJSONPost.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: money} })
+    delete_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: (money / 2)} })
+    delete_all_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: (repeats * (money / 2))} })
+    stats = SknUtils::CommandJSONGet.call({full_url: "http://localhost:8585/status"})
 
     {core: [view_cmd,add_cmd,delete_cmd], cleanup: [delete_all_cmd, view_cmd, stats]}
   end
@@ -117,7 +117,7 @@ class CommonElements
 
     results = [auth]
     if unregister.present?
-      work_plans[:cleanup].push(unreg_cmd)
+      work_plans[:cleanup].insert(-2, unreg_cmd)
       results.unshift(unregister)
     end
 
@@ -189,15 +189,15 @@ class NewUserWorkflow < CommonElements
   end
 
   def workflow(username, password, repeats=20, money=500)
-    reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://jscott5365m.local:8585/register"})
+    reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/register"})
     reg = execute_request(reg_cmd)
     return reg unless reg.success
 
-    auth_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://jscott5365m.local:8585/authenticate"})
+    auth_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/authenticate"})
     aut = execute_request(auth_cmd)
     return aut unless aut.success
 
-    unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://jscott5365m.local:8585/unregister" })
+    unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/unregister" })
 
     process(aut, repeats, money, reg, unreg)
   end
@@ -236,7 +236,7 @@ class ExistingUserWorkflow < CommonElements
   end
 
   def workflow(username, password, repeats=20, money=500)
-    auth_cmd = SknUtils::CommandJSONPost.call({username: username,  userpass: password,  full_url: "http://jscott5365m.local:8585/authenticate" })
+    auth_cmd = SknUtils::CommandJSONPost.call({username: username,  userpass: password,  full_url: "http://localhost:8585/authenticate" })
     aut = execute_request(auth_cmd)
     return aut unless aut.success
 
@@ -252,7 +252,7 @@ end
 #
 begin
 
-  repeats = (ARGV[0] || "10").to_i
+  repeats = (ARGV[0] || "2").to_i
 
   commands =[
       ->(repeats){ExistingUserWorkflow.({users: [], repeats: repeats, money: 100})},
@@ -262,8 +262,23 @@ begin
   # Initialize the queue with Async Workers by default
   provider = SknUtils::ConcurrentJobs.call
 
+  #
+  # The provided workers think the command are params to an executable
+  # - in this case, our commands are executable
+  #   so we need use this proc to reverse things
+  job = ->(cmd){ cmd.call(repeats) }
+
   # Populate WorkQueue
-  provider.register_jobs(commands, ->(cmd){ cmd.call(repeats) })
+  commands.each do |command|
+    provider.register_job do
+      begin
+        job.call(command)
+      rescue => ex
+        $stderr.puts ex
+        SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace[0]}")
+      end
+    end
+  end
 
   # Execute WorkQueue
   result = provider.render_jobs

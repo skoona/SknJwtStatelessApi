@@ -8,6 +8,6 @@
 :emuser:
   :username: emuser
   :balance: 50000
-:newuser:
-  :username: newuser
-  :balance: 0
+:someuser:
+  :username: someuser
+  :balance: 1200
