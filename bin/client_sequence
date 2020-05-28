@@ -1,0 +1,283 @@
+#!/usr/bin/env ruby
+#
+# file: ./bin/client_sequence
+#
+
+require 'bundler/setup'
+require './config/version'
+require 'skn_utils'
+
+module SknUtils
+  # Present in the gem
+  # CommandJSONGet,    CommandFORMGet,
+  # CommandJSONPost,   CommandFORMPost,
+  # CommandJSONPut,     ?? Put
+  #                    CommandFORMDelete
+  # CommandJSONDelete -- we define it here
+
+  # #################################################
+  # Augment the Utility with a Delete
+  class CommandJSONPDelete
+    def self.call(options)  # {full_url:,username:,userpass:,payload:,headers:}
+      new(options)
+    end
+
+    def json?
+      true
+    end
+
+    def uri
+      @_uri
+    end
+
+    def request
+      req = @_headers.nil? ? Net::HTTP::Delete.new(uri.request_uri) : Net::HTTP::Delete.new(uri.request_uri, @_headers)        # Generate HTTPRequest object
+      req.basic_auth(@_username, @_userpass) if credentials?
+      req.content_type = 'application/json'
+      req.body = formatted_data
+      req
+    end
+
+    private
+
+    def initialize(opts={})
+      @_username = opts[:username]
+      @_userpass = opts[:userpass]
+      @_headers  = opts[:headers]
+      @_uri      = URI.parse( opts[:full_url])
+      @_data     = opts[:payload]
+    end
+
+    def formatted_data
+      @_data.respond_to?(:to_json) ? @_data.to_json : @_data
+    end
+
+    def credentials?
+      !(@_username.nil? || @_userpass.nil?)
+    end
+  end
+end
+
+class CommonElements
+  @@new_users = [
+      {username: "bmagent",    userpass: "bmagent pwd" },
+      {username: "bmproducer", userpass: "bmproducer pwd" },
+      {username: "bmartist",   userpass: "bmartist pwd" },
+      {username: "bmagent",    userpass: "bmagent pwd" },
+      {username: "bmproducer", userpass: "bmproducer pwd" },
+      {username: "bmartist",   userpass: "bmartist pwd" }
+  ]
+  @@existing_users = [
+      {username: "emowner",    userpass: "emowner pwd" },
+      {username: "emkeeper",   userpass: "emkeeper pwd" },
+      {username: "emuser",     userpass: "emuser pwd" },
+  ]
+
+
+  def self.call(work, opts={})
+    new(opts).call(work)
+  end
+
+  def call(opts)
+    raise NotImplementedError.new("You should code this method in your subclass[es]!")
+  end
+
+# Returns formatted header
+  def apply_authentication(result)
+    if result.success
+      { Authorization: "Bearer #{result.value["token"]}" }
+    else
+      {Authentication: ""}
+    end
+  end
+
+# returns SknSuccess/SknFailure
+  def execute_request(command)
+    SknUtils::HttpProcessor.call(command)   # mis-spelling these params result in [SknFailure, SknFailure, ...] results
+  rescue => ex
+    $stderr.puts ex
+    $stderr.puts "#{ex.message}; #{ex.backtrace.join("\n")}"
+    SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace[0]}")
+  end
+
+  def prepare_core_commands(jwt_header, money, repeats)
+    view_cmd   = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money" })
+    add_cmd    = SknUtils::CommandJSONPost.call({headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money", payload: {amount: money} })
+    delete_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money", payload: {amount: (money / 2)} })
+    delete_all_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://jscott5365m.local:8585/api/v1/money", payload: {amount: (repeats * (money / 2))} })
+    stats = SknUtils::CommandJSONGet.call({full_url: "http://jscott5365m.local:8585/status"})
+
+    {core: [view_cmd,add_cmd,delete_cmd], cleanup: [delete_all_cmd, view_cmd, stats]}
+  end
+
+  def process(auth, repeats, money, unregister=nil, unreg_cmd=nil)
+    results = []
+    jwt_header = apply_authentication(auth)
+    work_plans = prepare_core_commands(jwt_header, money, repeats)
+
+    results = [auth]
+    if unregister.present?
+      work_plans[:cleanup].push(unreg_cmd)
+      results.unshift(unregister)
+    end
+
+    repeats.times do
+      results.push(
+          work_plans[:core].collect do |cmd|
+            execute_request(cmd)
+          end
+      )
+    end
+    results.push(
+      work_plans[:cleanup].collect do |cmd|
+          execute_request(cmd)
+      end
+    )
+    results
+  end
+
+  def existing_users
+    @@existing_users
+  end
+  def existing_users=(ary_hash)
+    @@existing_users = ary_hash
+  end
+
+  def new_users
+    @@new_users
+  end
+  def new_users=(ary_hash)
+    @@new_users = ary_hash
+  end
+
+  def initialize(opts={})
+    @opts = opts
+  end
+end
+
+class NewUserWorkflow < CommonElements
+  ##
+  # register
+  # authenticate
+  # -- extract jwt
+  # repeat x
+  #   view money
+  #   add  money
+  #   delete 1/2 money last added
+  # delete balance (repeat * (money /2)
+  # unregister
+  # return [reg,auth, [view,add,del][][]..., [delete_all,view],unreg]
+  #
+  # {users: [{username: "emowner",    userpass: "emowner pwd" }] or nil/empty, repeats: 1, money: 100}
+  def call(opts)
+    money   = opts.fetch(:money, 500)
+    repeats = opts.fetch(:repeats, 2)
+    users   = opts.fetch(:users, new_users)
+
+    if users.nil? || users.empty? || users.first.empty?
+      users = new_users
+    end
+
+    SknSuccess.(
+      users.collect do |work|
+        workflow(work[:username], work[:userpass], repeats, money)
+      end
+    )
+  rescue => ex
+    $stderr.puts ex
+    SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace.first.split("/").last}")
+  end
+
+  def workflow(username, password, repeats=20, money=500)
+    reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://jscott5365m.local:8585/register"})
+    reg = execute_request(reg_cmd)
+    return reg unless reg.success
+
+    auth_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://jscott5365m.local:8585/authenticate"})
+    aut = execute_request(auth_cmd)
+    return aut unless aut.success
+
+    unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://jscott5365m.local:8585/unregister" })
+
+    process(aut, repeats, money, reg, unreg)
+  end
+
+end
+
+class ExistingUserWorkflow < CommonElements
+##
+# authenticate
+# -- extract jwt
+# repeat x
+#   view money
+#   add  money
+#   delete 1/2 money last added
+# delete balance (repeat * (money /2)
+# return [auth, [view,add,del][][]..., delete_all]
+#
+# {users: [{username: "emowner",    userpass: "emowner pwd" }] or nil/empty, repeats: 1, money: 100}
+  def call(opts)
+    money   = opts.fetch(:money, 500)
+    repeats = opts.fetch(:repeats, 2)
+    users   = opts.fetch(:users, existing_users)
+
+    if users.nil? || users.empty? || users.first.empty?
+      users = existing_users
+    end
+
+    SknSuccess.(
+        users.collect do |work|
+          workflow(work[:username], work[:userpass], repeats, money)
+        end
+    )
+  rescue => ex
+    $stderr.puts ex
+    SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace.first.split("/").last}")
+  end
+
+  def workflow(username, password, repeats=20, money=500)
+    auth_cmd = SknUtils::CommandJSONPost.call({username: username,  userpass: password,  full_url: "http://jscott5365m.local:8585/authenticate" })
+    aut = execute_request(auth_cmd)
+    return aut unless aut.success
+
+    process(aut, repeats, money)
+  end
+end
+
+
+
+# ##
+# MainLine
+# ##
+#
+begin
+
+  repeats = 100
+
+  commands =[
+      ->(repeats){ExistingUserWorkflow.({users: [], repeats: repeats, money: 100})},
+      ->(repeats){NewUserWorkflow.({users: [], repeats: repeats, money: 100})}
+  ]
+
+  # Initialize the queue with Async Workers by default
+  provider = SknUtils::ConcurrentJobs.call
+
+  # Populate WorkQueue
+  provider.register_jobs(commands, ->(cmd){ cmd.call(repeats) })
+
+  # Execute WorkQueue
+  result = provider.render_jobs
+
+  if result.success?
+    puts "Success: true"
+    puts "Values: #{result.values}"
+    puts "Messages: #{result.messages}"
+  else
+    puts "Success: false - errors: #{result.messages.join(', ')}"
+    puts "Values: #{result.values}"
+  end
+
+#  result.values
+rescue => e
+  $stderr.puts e.message, e.backtrace
+end
