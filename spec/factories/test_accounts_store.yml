@@ -1,4 +1,7 @@
 ---
+:emadmin:
+  :username: emadmin
+  :balance: 0
 :emowner:
   :username: emowner
   :balance: 100000

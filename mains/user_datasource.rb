@@ -80,6 +80,29 @@ class UserDatasource
     end
   end
 
+  def credentials_update_for(value) # {username: "", scopes: [all-new-values]}
+    if @_credentials.member?(value[:username].to_sym)
+      merged = @_credentials[value[:username].to_sym].merge!(value) # pickup password and other value, since its designed for scopes originally
+      if credentials_save(merged)
+        SknSuccess.(value)
+      else
+        SknFailure.(value, "Scopes Updated Failed for #{value[:username]}")
+      end
+    else
+      SknFailure.(value, "#{username} is not a existing user.")
+    end
+  end
+
+  def list_credentials(username)
+    if @_credentials.member?(username.to_sym)
+        SknSuccess.(
+            users: @_credentials.values.map {|user| {username: user[:username], scopes: user[:scopes]} }
+        )
+    else
+        SknFailure.({username: username}, "#{username} is not Authorized for this action.")
+    end
+  end
+
   def credentials_add(value)
     key = value[:username]
     credentials_save(value) unless @_credentials.member?(key)

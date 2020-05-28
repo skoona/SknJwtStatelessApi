@@ -3,6 +3,11 @@
 # Ref: http://tutorials.jumpstartlab.com/topics/capybara/capybara_with_rack_test.html
 
 RSpec.describe "Stateless API Responds Correctly. " do
+  let(:service) {UserDatasource.instance}
+
+  before :each do
+    service.send(:filesystem_refresh, true)
+  end
 
   RSpec.shared_examples 'Money API with JWT' do
     before :each do
@@ -104,8 +109,40 @@ RSpec.describe "Stateless API Responds Correctly. " do
       it "returns available metrics on any http verb" do
         get "/status"
         expect(last_response).to be_successful
-        puts last_response.body
         expect(last_response.body).to include("timestamp")
+      end
+    end
+
+    context "User Administration" do
+      context "as Administrator" do
+        before :each do
+          apply_user_authentication(authorizing_token('emadmin', 'emadmin pwd'))
+        end
+        it "Update User Roles" do
+          put "/api/v1/admin", {username: "emkeeper", scopes: SknSettings.defaults.registrations.emowner.scopes}
+          expect(last_response).to be_successful
+          expect(last_response.body).to include("emkeeper")
+        end
+        it "List all user" do
+          get "/api/v1/admin"
+          expect(last_response).to be_successful
+          expect(last_response.body).to include("emkeeper")
+        end
+      end
+      context "as User" do
+        before :each do
+          apply_user_authentication(authorizing_token('emowner', 'emowner pwd'))
+        end
+        it "Update User Roles" do
+          put "/api/v1/admin"
+          expect(last_response).to be_forbidden
+          expect(last_response.body).to include("error")
+        end
+        it "List all user" do
+          get "/api/v1/admin"
+          expect(last_response).to be_forbidden
+          expect(last_response.body).to include("error")
+        end
       end
     end
   end

@@ -62,15 +62,12 @@ class CommonElements
   @@new_users = [
       {username: "bmagent",    userpass: "bmagent pwd" },
       {username: "bmproducer", userpass: "bmproducer pwd" },
-      {username: "bmartist",   userpass: "bmartist pwd" },
-      {username: "bmagent",    userpass: "bmagent pwd" },
-      {username: "bmproducer", userpass: "bmproducer pwd" },
       {username: "bmartist",   userpass: "bmartist pwd" }
   ]
   @@existing_users = [
       {username: "emowner",    userpass: "emowner pwd" },
       {username: "emkeeper",   userpass: "emkeeper pwd" },
-      {username: "emuser",     userpass: "emuser pwd" },
+      {username: "emuser",     userpass: "emuser pwd" }
   ]
 
 
@@ -136,6 +133,9 @@ class CommonElements
     results
   end
 
+  def self.existing_users
+    @@existing_users
+  end
   def existing_users
     @@existing_users
   end
@@ -143,6 +143,9 @@ class CommonElements
     @@existing_users = ary_hash
   end
 
+  def self.new_users
+    @@new_users
+  end
   def new_users
     @@new_users
   end
@@ -215,7 +218,7 @@ class ExistingUserWorkflow < CommonElements
 # delete balance (repeat * (money /2)
 # return [auth, [view,add,del][][]..., delete_all]
 #
-# {users: [{username: "emowner",    userpass: "emowner pwd" }] or nil/empty, repeats: 1, money: 100}
+# {users: [{username: "emowner",    userpass: "emowner pwd" } or nil/empty, repeats: 1, money: 100}
   def call(opts)
     money   = opts.fetch(:money, 500)
     repeats = opts.fetch(:repeats, 2)
@@ -246,13 +249,56 @@ end
 
 
 
+# Result Structure
+# two top level jobs existing and new users
+#  [ SknSuccess.value(
+#     [         -- repeats                       -- cleanups
+#       [token,[view_cmd,add_cmd,delete_cmd]...,[delete_all_cmd, view_cmd, stats]],... for each existing user (3)
+#     ]
+#   ),
+#   SknSuccess.value(
+#     [             -- repeats                       -- cleanups
+#       [reg,token,[view_cmd,add_cmd,delete_cmd]...,[delete_all_cmd, view_cmd, unreg, stats]],... for each user (3)
+#     ]
+#   )
+# ]
+# where repeats are: [view_cmd,add_cmd,delete_cmd] ;one for each count of repeats
+# where cleanups are: [delete_all_cmd, view_cmd, stats] or [delete_all_cmd, view_cmd, unreg, stats] ; one per user
+# each entry is either a SknSuccess or SknFailure object
+def result_formatter(results, timestamp, repeats)
+  puts "Top Level Job: #{results.class.name}, Status: #{results.success?}, Message: #{results.messages}, Repeats: #{repeats},  Duration: #{timestamp},  Contains: #{results.values.count} work units"
+  results.values.each do |trans|
+    puts "\tWork Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.count} elements"
+    trans.value.each do |ele|
+      ele.each do |element|
+        if element.is_a?(Array)
+          element.each_with_index do |wu,idx|
+            if (wu.value.respond_to?(:keys) ? (wu.value.keys.include?('metrics') ? true : false) : false)
+              puts "\t\tWorkflow Metrics: #{wu.class.name}, Metrics: #{wu.value["metrics"]}\n\n"
+            else
+              puts "\t\t\t#{"%02d" % idx}~> Workflow Element: #{wu.class.name}, Message: #{wu.message}, Contains: #{wu.value.respond_to?(:keys) ? wu.value.keys : wu.value}"
+            end
+          end
+        else
+          if element.value["token"]
+            puts "\t\tWorkflow Authorization: #{element.class.name}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value}"
+          elsif element.value["message"]
+            puts "\n\t\tWorkflow Register: #{element.class.name}, Contains: #{element.value}"
+          else
+            puts "\t\tWorkflow Cleanup: #{element.class.name}, Message: #{element.message}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value} elements"
+          end
+        end
+      end
+    end
+  end
+  true
+end
+
 # ##
 # MainLine
 # ##
 #
-begin
-
-  repeats = (ARGV[0] || "2").to_i
+def run_with_callables(repeats = 1)
 
   commands =[
       ->(repeats){ExistingUserWorkflow.({users: [], repeats: repeats, money: 100})},
@@ -283,16 +329,53 @@ begin
   # Execute WorkQueue
   result = provider.render_jobs
 
-  if result.success?
-    puts "Success: true"
-    puts "Values: #{result.values}"
-    puts "Messages: #{result.messages}"
-  else
-    puts "Success: false - errors: #{result.messages.join(', ')}"
-    puts "Values: #{result.values}"
-  end
+  # if result.success?
+  #   puts "Success: true"
+  #   puts "Values: #{result.values}"
+  #   puts "Messages: #{result.messages}"
+  # else
+  #   puts "Success: false - errors: #{result.messages.join(', ')}"
+  #   puts "Values: #{result.values}"
+  # end
 
-#  result.values
+  result_formatter result, provider.elapsed_time_string, repeats
 rescue => e
   $stderr.puts e.message, e.backtrace
+end
+
+def run_with_params(repeats = 1)
+
+  commands =[
+      {users: CommonElements.existing_users , repeats: repeats, money: 100},
+      {users: CommonElements.existing_users , repeats: repeats, money: 100}
+  ]
+
+  # Initialize the queue with Async Workers by default
+  provider = SknUtils::ConcurrentJobs.call
+
+  # Populate WorkQueue
+  provider.register_jobs(commands, ExistingUserWorkflow)
+
+  # Execute WorkQueue
+  result = provider.render_jobs
+
+  # if result.success?
+  #   puts "Success: true"
+  #   puts "Values: #{result.values}"
+  #   puts "Messages: #{result.messages}"
+  # else
+  #   puts "Success: false - errors: #{result.messages.join(', ')}"
+  #   puts "Values: #{result.values}"
+  # end
+
+  result_formatter result, provider.elapsed_time_string, repeats
+rescue => e
+  $stderr.puts e.message, e.backtrace
+end
+
+begin
+  repeats = (ARGV[0] || "10").to_i
+
+  run_with_callables(repeats)
+  run_with_params(repeats)
 end

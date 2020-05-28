@@ -84,7 +84,7 @@ RSpec.describe UserDatasource, "Local Registration and Account Storage. " do
       crd = SknHash.new(accts[:emowner].to_hash)
       expect(service.account_for(crd.username)).to be_a SknSuccess
     end
-    it "Update Account. " do
+    it "Update Account Monies. " do
       crd = SknHash.new(accts[:emowner].to_hash)
       expect(service.account_update_for(crd.username, 1000)).to be_a SknSuccess
     end
@@ -92,6 +92,17 @@ RSpec.describe UserDatasource, "Local Registration and Account Storage. " do
       crd = SknHash.new(creds[:emuser].to_hash)
       expect(service.authenticate!(crd.username, crd.password)).to be_a SknSuccess
       expect(service.authenticate!(crd.username, "Suzy")).to be_a SknFailure
+    end
+    it "Lists all Users. " do
+      crd = SknHash.new(accts[:emowner].to_hash)
+      res = service.list_credentials("emadmin")
+      expect(res).to be_a SknSuccess
+    end
+    it "Update User Roles. " do
+      crd = SknHash.new(accts[:emowner].to_hash)
+      value = {username: "emkeeper", scopes: SknSettings.defaults.registrations.emowner.scopes}
+      res = service.credentials_update_for(value)
+      expect(res).to be_a SknSuccess
     end
   end
 end

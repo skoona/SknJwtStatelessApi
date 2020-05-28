@@ -49,6 +49,23 @@ class JwtStatelessApi < Roda
         end
       end
     end
+
+    r.is 'admin' do
+      r.put  do # {username: "", scopes: ""} -- update_roles
+        SknApp.metadata[:admin_events] += 1
+        process_request request, 'admin' do |req, username|
+          res = accounts.credentials_update_for({username: r.params["username"], scopes: r.params["scopes"]})
+          res.value.to_hash
+        end
+      end
+      r.get  do # list all
+        SknApp.metadata[:admin_events] += 1
+        process_request request, 'admin' do |req, username|
+          res = accounts.list_credentials(username)
+          res.value.to_hash
+        end
+      end
+    end
   end # end route
 
   ##

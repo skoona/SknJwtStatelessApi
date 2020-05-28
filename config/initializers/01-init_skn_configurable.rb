@@ -22,6 +22,7 @@ class SknApp
       app_version: Skn::VERSION,
       active_environment: SknApp.env,
       api_version: 'v1',
+      admin_events: 0,
       registrations: 0,
       reg_failures: 0,
       unregisters: 0,

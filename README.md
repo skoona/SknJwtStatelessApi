@@ -36,8 +36,14 @@ WebServer
     Authorization:Basic <B64(username:password)> DELETE <host:port>/unregister    Delete Authenticated User
 
     Authorization:Bearer <token> GET    <host:port>/api/v1/money                  View Balance
-    Authorization:Bearer <token> POST   <host:port>/api/v1/money?amount=50        Add amount to Balance
-    Authorization:Bearer <token> DELETE <host:port>/api/v1/money?amount=50        Remove amount from Balance
+    Authorization:Bearer <token> POST   <host:port>/api/v1/money                  Add amount to Balance
+                                          >{amount:50}
+    Authorization:Bearer <token> DELETE <host:port>/api/v1/money                  Remove amount from Balance
+                                          >{amount:50}
+
+    Authorization:Bearer <token> GET    <host:port>/api/v1/admin                  Lists all users with their permissions
+    Authorization:Bearer <token> PUT    <host:port>/api/v1/admin                  Updates an Existing Users Scopes/Roles/Permissions
+                                          >{username:"anyUser",scopes:[all-scopes]}
 
 ### Potential UseCases
 #### Existing User

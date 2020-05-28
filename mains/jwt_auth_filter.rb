@@ -14,7 +14,6 @@ class JwtAuthFilter
       payload, header = JWT.decode bearer, SknSettings.idp.secret, true, options
 
       env[:user] = User.(payload.dig('user', 'username'), payload['scopes'])
-      SknApp.logger.debug("#{self.class.name}() Payload=#{payload}, Header=#{header}")
 
       @app.call env
     end

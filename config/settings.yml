@@ -23,6 +23,14 @@ defaults:
       - view_money
       - add_money
     :registrations:
+      emadmin:
+        username: emadmin
+        password: emadmin pwd
+        :scopes:
+          - add_money
+          - view_money
+          - remove_money
+          - admin
       emowner:
         username: emowner
         password: emowner pwd
@@ -42,6 +50,9 @@ defaults:
         :scopes:
           - view_money
     :accounts:
+      emadmin:
+        username: emadmin
+        balance: 0
       emowner:
         username: emowner
         balance: 100000
