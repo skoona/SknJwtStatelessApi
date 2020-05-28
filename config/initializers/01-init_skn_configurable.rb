@@ -24,6 +24,8 @@ class SknApp
       api_version: 'v1',
       registrations: 0,
       reg_failures: 0,
+      unregisters: 0,
+      unreg_failures: 0,
       authentications: 0,
       auth_failures: 0,
       not_found_failures: 0,
@@ -33,6 +35,7 @@ class SknApp
       api_add_money_requests: 0,
       api_remove_money_requests: 0,
       uncaught_exceptions: 0,
+      jwt_tokens_issued: 0,
       jwt_audience: SknSettings.idp.audience,
       credentials_storage: File.size?(SknSettings.datasources.credentials),
       accounts_storage: File.size?(SknSettings.datasources.accounts)

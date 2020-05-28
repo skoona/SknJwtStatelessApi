@@ -54,10 +54,10 @@ class JwtAuthenticator < Roda
         res = unregister_user(request.env)
         if res.success
           response.status = 202
-          SknApp.metadata[:registrations] -= 1
+          SknApp.metadata[:unregisters] += 1
           {message: res.message}
         else
-          SknApp.metadata[:reg_failures] += 1
+          SknApp.metadata[:unreg_failures] += 1
           r.halt [Rack::Utils.status_code(:bad_request), { 'Content-Type' => 'application/json' }, [{error: 'BadRequest', errorDetails: "Authentication credentials required. [#{res.message}]"}.to_json]]
         end
       end
@@ -120,6 +120,7 @@ class JwtAuthenticator < Roda
   end
 
   def payload(username, scopes)
+    SknApp.metadata[:jwt_tokens_issued] += 1
     {
         exp: Time.now.getlocal.to_i + 60 * 60,
         iat: Time.now.getlocal.to_i,
