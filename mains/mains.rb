@@ -11,3 +11,6 @@ require_relative 'user_datasource'
 SknApp.registry.register("users-datasource", ->() { UserDatasource.instance } , call: true)
 
 SknApp.logger.info "SknJwtStatelessApi Serving the #{SknApp.config.app_id} audience."
+
+# Trigger Datasource Once to Initialize DB if Needed
+SknApp.registry.resolve("users-datasource")

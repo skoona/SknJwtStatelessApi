@@ -4,10 +4,8 @@ module HandleAuthentication
 
   def unregister_user(env)
     res = res = SknFailure.({username: "", scopes: []}, "Unregister Failure!")
-    auth = Rack::Auth::Basic::Request.new(env)
-    if (auth.provided? && auth.basic? && auth.credentials)
-      username = auth.credentials[0]
-      password = auth.credentials[1]
+    username, password = extract_basic_auth(env)
+    if username
       res = SknApp.registry.resolve("users-datasource").unregister(username, password)
       if res.success
         SknApp.logger.debug("#{__method__}() #{res.message}")
@@ -21,10 +19,8 @@ module HandleAuthentication
 
   def register_user(env)
     res = res = SknFailure.({username: "", scopes: []}, "Registration Failure!")
-    auth = Rack::Auth::Basic::Request.new(env)
-    if (auth.provided? && auth.basic? && auth.credentials)
-      username = auth.credentials[0]
-      password = auth.credentials[1]
+    username, password = extract_basic_auth(env)
+    if username
       res = SknApp.registry.resolve("users-datasource").register(username, password)
       if res.success
         SknApp.logger.debug("#{__method__}() #{res.message}")
@@ -38,10 +34,8 @@ module HandleAuthentication
 
   def validate_user(env)
     res = SknFailure.({username: "", scopes: []}, "Validation Failure!")
-    auth = Rack::Auth::Basic::Request.new(env)
-    if (auth.provided? && auth.basic? && auth.credentials)
-      username = auth.credentials[0]
-      password = auth.credentials[1]
+    username, password = extract_basic_auth(env)
+    if username
       res = SknApp.registry.resolve("users-datasource").authenticate!(username, password)
       username = nil unless res.success # SknSuccess/SknFailure
       scopes   = res.value[:scopes]
@@ -51,6 +45,17 @@ module HandleAuthentication
   rescue => e
     SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
     SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+  end
+
+  def extract_basic_auth(env)
+    username = nil
+    password = nil
+    auth = Rack::Auth::Basic::Request.new(env)
+    if (auth.provided? && auth.basic? && auth.credentials)
+      username = auth.credentials[0]
+      password = auth.credentials[1]
+    end
+    [username, password]
   end
 
   def token(res)

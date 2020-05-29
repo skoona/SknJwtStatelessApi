@@ -119,9 +119,8 @@ class UserDatasource
 
   def credentials_save(value)
     if value[:username]
-      ds = credentials_ds
       key = value[:username].to_sym
-      if !!ds.transaction {|tx| tx[key] = value }
+      if !!credentials_ds {|ds| ds.transaction {|tx| tx[key] = value }}
         @_credentials[key] = value
         true  # no leaking objects
       end
@@ -134,10 +133,9 @@ class UserDatasource
   end
   def credentials_delete(value)
     if value[:username]
-      ds = credentials_ds
       key = value[:username].to_sym
       if !!@_credentials.delete(key)
-        ds.transaction {|tx| tx.delete(key) }
+        credentials_ds {|ds| ds.transaction {|tx| tx.delete(key) }}
         true
       end
     else
@@ -150,9 +148,8 @@ class UserDatasource
 
   def accounts_save(value)
     if value[:username]
-      ds = accounts_ds
       key = value[:username].to_sym
-      if !!ds.transaction {|tx| tx[key] = value }
+      if !!accounts_ds {|ds| ds.transaction {|tx| tx[key] = value }}
         @_accounts[key] = value
         true
       end
@@ -165,10 +162,9 @@ class UserDatasource
   end
   def accounts_delete(value)
     if value[:username]
-      ds = accounts_ds
       key = value[:username].to_sym
       if !!@_accounts.delete(key)
-        !!ds.transaction {|tx| tx.delete(key) }
+        !!accounts_ds {|ds| ds.transaction {|tx| tx.delete(key) }}
       end
       true
     else
@@ -180,16 +176,28 @@ class UserDatasource
   end
 
   def credentials_ds
-    SknApp.metadata[:credential_transactions] += 1
-    ds =YAML::Store.new(SknSettings.datasources.credentials, true)
-    ds.ultra_safe = true
-    ds
+    @__creds.synchronize do
+      SknApp.metadata[:credential_transactions] += 1
+      ds =YAML::Store.new(SknSettings.datasources.credentials, true)
+      ds.ultra_safe = true
+      if block_given?
+        yield ds
+      else
+        ds
+      end
+    end
   end
   def accounts_ds
-    SknApp.metadata[:account_transactions] += 1
-    ds = YAML::Store.new(SknSettings.datasources.accounts, true)
-    ds.ultra_safe = true
-    ds
+    @__accts.synchronize do
+      SknApp.metadata[:account_transactions] += 1
+      ds = YAML::Store.new(SknSettings.datasources.accounts, true)
+      ds.ultra_safe = true
+      if block_given?
+        yield ds
+      else
+        ds
+      end
+    end
   end
 
   def credentials_restore(override=false)
@@ -227,16 +235,21 @@ class UserDatasource
   end
 
   def filesystem_refresh(override=false)
-    if override || (!File.exist?(SknSettings.datasources.credentials) || (File.size?(SknSettings.datasources.credentials).to_i < 10))
-      credentials_restore true
-      accounts_restore true
-    else
-      credentials_restore
-      accounts_restore
+    @_only_one.synchronize do
+      if override || (!File.exist?(SknSettings.datasources.credentials) || (File.size?(SknSettings.datasources.credentials).to_i < 10))
+        credentials_restore true
+        accounts_restore true
+      else
+        credentials_restore
+        accounts_restore
+      end
     end
   end
 
   def initialize
+    @_only_one = Mutex.new
+    @__creds = Mutex.new
+    @__accts = Mutex.new
     super
     filesystem_refresh
   end

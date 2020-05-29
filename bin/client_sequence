@@ -211,7 +211,7 @@ class WorkflowProcessor < CommonElements
       reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/register"})
       reg = execute_request(reg_cmd)
         return reg unless reg.success
-      unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/unregister" })
+      unreg = SknUtils::CommandJSONPDelete.call({username: username, userpass: password, full_url: "#{base_host_url}/unregister" })
     end
 
     auth_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/authenticate"})
