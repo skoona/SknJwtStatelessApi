@@ -10,7 +10,7 @@ gem 'logging'
 gem 'json'
 
 # General Utilities
-gem 'skn_utils', "=> 5.8.0"
+gem 'skn_utils', "~> 5.8.0"
 
 # Web Security
 gem 'jwt'
