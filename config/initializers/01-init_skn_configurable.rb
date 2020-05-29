@@ -35,11 +35,13 @@ class SknApp
       api_view_money_requests: 0,
       api_add_money_requests: 0,
       api_remove_money_requests: 0,
-      uncaught_exceptions: 0,
+      jwt_issuer: SknSettings.idp.issuer,
+      jwt_token_lifetime: SknSettings.idp.jwt_expires_in_seconds,
       jwt_tokens_issued: 0,
       jwt_audience: SknSettings.idp.audience,
       credentials_storage: File.size?(SknSettings.datasources.credentials),
-      accounts_storage: File.size?(SknSettings.datasources.accounts)
+      accounts_storage: File.size?(SknSettings.datasources.accounts),
+      uncaught_exceptions: 0
   }
 
   configure do

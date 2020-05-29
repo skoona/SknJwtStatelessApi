@@ -2,7 +2,6 @@ class UserDatasource
   include Singleton
   ##
   # Hash with Key for each user
-  # TODO SknHash to SknSuccess/SknFailure
   ##
   SknApp.logger.debug "Entering #{self.name} as Database!"
 
@@ -185,6 +184,9 @@ class UserDatasource
       else
         ds
       end
+    rescue => e
+      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+      false
     end
   end
   def accounts_ds
@@ -197,6 +199,9 @@ class UserDatasource
       else
         ds
       end
+    rescue => e
+      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+      false
     end
   end
 
@@ -205,10 +210,10 @@ class UserDatasource
     if override
       IO.binwrite( SknSettings.datasources.credentials, SknSettings.defaults.registrations.to_hash.to_yaml)
     end
-    ds = credentials_ds
-    ds.transaction(true) do |tx|
-      tx.roots.each do |username_key|
-        pkg[username_key] = tx[username_key]
+    credentials_ds do |ds| ds.transaction(true) do |tx|
+        tx.roots.each do |username_key|
+          pkg[username_key] = tx[username_key]
+        end
       end
     end
     @_credentials = pkg
@@ -222,10 +227,10 @@ class UserDatasource
     if override
       IO.binwrite( SknSettings.datasources.accounts, SknSettings.defaults.accounts.to_hash.to_yaml)
     end
-    ds = accounts_ds
-    ds.transaction(true) do |tx|
-      tx.roots.each do |username_key|
-        pkg[username_key] = tx[username_key]
+    accounts_ds do |ds| ds.transaction(true) do |tx|
+        tx.roots.each do |username_key|
+          pkg[username_key] = tx[username_key]
+        end
       end
     end
     @_accounts = pkg
@@ -243,6 +248,9 @@ class UserDatasource
         credentials_restore
         accounts_restore
       end
+    rescue => e
+      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+      nil
     end
   end
 
