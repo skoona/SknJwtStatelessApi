@@ -109,7 +109,7 @@ class CommonElements
     {core: [view_cmd,add_cmd,delete_cmd], cleanup: [delete_all_cmd, view_cmd, users, stats]}
   end
 
-  def process(auth, repeats, money, unregister=nil, unreg_cmd=nil)
+  def process(auth, repeats, money, unregister=nil, unreg_cmd=nil, update_roles=nil)
     results = []
     jwt_header = apply_authentication(auth)
     work_plans = prepare_core_commands(jwt_header, money, repeats)
@@ -118,6 +118,7 @@ class CommonElements
     if unregister.present?
       work_plans[:cleanup].insert(-3, unreg_cmd)
       results.unshift(unregister)
+      results.push(update_roles)
     end
 
     repeats.times do
@@ -207,6 +208,7 @@ class WorkflowProcessor < CommonElements
     reg_cmd = nil
     reg = nil
     unreg = nil
+    update_roles = nil
     if action.to_s.eql?("register")
       reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/register"})
       reg = execute_request(reg_cmd)
@@ -218,7 +220,12 @@ class WorkflowProcessor < CommonElements
     aut = execute_request(auth_cmd)
     return aut unless aut.success
 
-    process(aut, repeats, money, reg, unreg)
+    if action.to_s.eql?("register")
+      roles_cmd = SknUtils::CommandJSONPut.call({headers: admin_jwt_header, payload: {username: username, scopes: ["add_money","view_money","remove_money"]}, full_url: "#{base_host_url}/api/v1/admin" })
+      update_roles = execute_request(roles_cmd)
+    end
+
+    process(aut, repeats, money, reg, unreg, update_roles)
   end
 end
 
@@ -287,10 +294,10 @@ end
 # where cleanups are: [delete_all_cmd, view_cmd, stats] or [delete_all_cmd, view_cmd, unreg, stats] ; one per user
 # each entry is either a SknSuccess or SknFailure object
 def result_formatter(results, timestamp, repeats)
-  footer = repeats + 1
   puts "Top Level Job: #{results.class.name}, Status: #{results.success?}, Message: #{results.messages}, Repeats: #{repeats},  Duration: #{timestamp},  Contains: #{results.values.count} work units"
   results.values.each do |trans|
-    puts "\tWork Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.count} elements"
+    footer = trans.value.count + 1
+    puts "\n\tWork Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.count}"
     trans.value.each_with_index do |ele, unit|
       ele.each_with_index do |element, rep|
         rps = rep - 1
@@ -312,9 +319,9 @@ def result_formatter(results, timestamp, repeats)
           if element.value["token"]
             puts "\t\t#{"%04d" % unit} Workflow Authorization: #{element.class.name}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value}"
           elsif element.value["message"]
-            puts "\n\t\t#{"%04d" % unit} Workflow Register: #{element.class.name}, Contains: #{element.value}"
+            puts "\t\t#{"%04d" % unit} Workflow Register: #{element.class.name}, Contains: #{element.value}"
           else
-            puts "\t\tWorkflow Cleanup: #{element.class.name}, Message: #{element.message}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value} elements"
+            puts "\t\t#{"%04d" % unit} Workflow UpdateRoles: #{element.class.name}, Message: #{element.message}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value}"
           end
         end
       end
