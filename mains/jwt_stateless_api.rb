@@ -66,6 +66,7 @@ class JwtStatelessApi < Roda
           res.value.to_hash
         end
       end
+
       r.get  do # list all
         SknApp.metadata[:admin_events] += 1
         process_request request, 'admin' do |req, username|

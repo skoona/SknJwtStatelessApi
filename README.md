@@ -45,6 +45,24 @@ WebServer
     Authorization:Bearer <token> PUT    <host:port>/api/v1/admin                  Updates an Existing Users Scopes/Roles/Permissions
                                           >{username:"anyUser",scopes:[all-scopes]}
 
+#### Client Example
+Produces this summary status from the /status api method.
+
+    $ ./bin/client_sequence 25         //<repeat-workflow-times>    
+```text
+
+                    Workflow Metrics: SknSuccess, Metrics:
+                    ---[ METRICS ]--- Duration: 0.215 seconds
+                         ipl_timestamp: 020-05-28 23:14:17.3397                      timestamp: 020-05-28 23:17:55.6852                                    app_version: 2.1.0
+                    active_environment: development                                api_version: v1                                                        admin_events: 12
+                         registrations: 12                                        reg_failures: 0                                                          unregisters: 0
+                        unreg_failures: 0                                      authentications: 24                                                       auth_failures: 0
+                    not_found_failures: 12                                account_transactions: 65                                             credential_transactions: 13
+               api_view_money_requests: 72                              api_add_money_requests: 48                                           api_remove_money_requests: 72
+                   uncaught_exceptions: 0                                    jwt_tokens_issued: 24                                                        jwt_audience: ["InternalUseOnly"]
+                   credentials_storage: 685                                   accounts_storage: 345
+```    
+
 ### Potential UseCases
 #### Existing User
 1. POST <host>/authenticate   -- to receive a JWT Token using new creds     
@@ -64,6 +82,7 @@ WebServer
 6. DELETE <host>/api/v1/money?amount=10  -- to REMOVE money: Not Authorized for New Users
 7. GET  <host>/api/v1/money              -- to VIEW money ~~ 100
 8. `Stateless` does not require a logoff
+
 
 ## Installation
 Benefits from two environment variables as overrides to the /config/settings.yml application settings; use your own values.  
