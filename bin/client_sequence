@@ -98,13 +98,14 @@ class CommonElements
   end
 
   def prepare_core_commands(jwt_header, money, repeats)
+    users      = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "http://localhost:8585/api/v1/admin" })
     view_cmd   = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "http://localhost:8585/api/v1/money" })
     add_cmd    = SknUtils::CommandJSONPost.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: money} })
     delete_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: (money / 2)} })
     delete_all_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: (repeats * (money / 2))} })
     stats = SknUtils::CommandJSONGet.call({full_url: "http://localhost:8585/status"})
 
-    {core: [view_cmd,add_cmd,delete_cmd], cleanup: [delete_all_cmd, view_cmd, stats]}
+    {core: [view_cmd,add_cmd,delete_cmd], cleanup: [delete_all_cmd, view_cmd, users, stats]}
   end
 
   def process(auth, repeats, money, unregister=nil, unreg_cmd=nil)
@@ -134,26 +135,21 @@ class CommonElements
   end
 
   def list_of_users
-    (@@existing_users + @@new_users).flatten
+    (existing_users + new_users).flatten
   end
+
   def self.existing_users
     @@existing_users
   end
   def existing_users
-    @@existing_users
-  end
-  def existing_users=(ary_hash)
-    @@existing_users = ary_hash
+    singleton_class.existing_users
   end
 
   def self.new_users
     @@new_users
   end
   def new_users
-    @@new_users
-  end
-  def new_users=(ary_hash)
-    @@new_users = ary_hash
+    singleton_class.new_users
   end
 
   def initialize(opts={})
@@ -216,34 +212,21 @@ class WorkflowProcessor < CommonElements
   end
 end
 
+# formats this
+#
+#                 Workflow Metrics: SknSuccess, Metrics:
+#                 ---[ METRICS ]--- Duration: 0.215 seconds
+#                      ipl_timestamp: 020-05-28 23:14:17.3397                      timestamp: 020-05-28 23:17:55.6852                                    app_version: 2.1.0
+#                 active_environment: development                                api_version: v1                                                        admin_events: 12
+#                      registrations: 12                                        reg_failures: 0                                                          unregisters: 0
+#                     unreg_failures: 0                                      authentications: 24                                                       auth_failures: 0
+#                 not_found_failures: 12                                account_transactions: 65                                             credential_transactions: 13
+#            api_view_money_requests: 72                              api_add_money_requests: 48                                           api_remove_money_requests: 72
+#                uncaught_exceptions: 0                                    jwt_tokens_issued: 24                                                        jwt_audience: ["InternalUseOnly"]
+#                credentials_storage: 685                                   accounts_storage: 345
 def metric_formatter(skn, timestamp)
   return "Metrics not available! #{skn.message}" unless skn.success
-  # {
-  #     ipl_timestamp: Time.now.getlocal.strftime('%Y-%m-%d %H:%M:%S.%N %z'),
-  #     timestamp: Time.now.getlocal.strftime('%Y-%m-%d %H:%M:%S.%N %z'),
-  #     app_version: Skn::VERSION,
-  #     active_environment: SknApp.env,
-  #     api_version: 'v1',
-  #     admin_events: 0,
-  #     registrations: 0,
-  #     reg_failures: 0,
-  #     unregisters: 0,
-  #     unreg_failures: 0,
-  #     authentications: 0,
-  #     auth_failures: 0,
-  #     not_found_failures: 0,
-  #     account_transactions: 0,
-  #     credential_transactions: 0,
-  #     api_view_money_requests: 0,
-  #     api_add_money_requests: 0,
-  #     api_remove_money_requests: 0,
-  #     uncaught_exceptions: 0,
-  #     jwt_tokens_issued: 0,
-  #     jwt_audience: SknSettings.idp.audience,
-  #     credentials_storage: File.size?(SknSettings.datasources.credentials),
-  #     accounts_storage: File.size?(SknSettings.datasources.accounts)
-  # }
-  buffer = "\n\t\t\t---[ METRICS ]--- Duration: #{timestamp}\n"
+  buffer = "\n\t\t---[ METRICS ]--- Duration: #{timestamp}\n"
   per_line = 0
   skn.value["metrics"].each_pair do |k,v|
     val = v
@@ -338,15 +321,6 @@ def run_with_callables(repeats = 1)
   # Execute WorkQueue
   result = provider.render_jobs
 
-  # if result.success?
-  #   puts "Success: true"
-  #   puts "Values: #{result.values}"
-  #   puts "Messages: #{result.messages}"
-  # else
-  #   puts "Success: false - errors: #{result.messages.join(', ')}"
-  #   puts "Values: #{result.values}"
-  # end
-
   result_formatter result, provider.elapsed_time_string, repeats
 rescue => e
   $stderr.puts e.message, e.backtrace
@@ -382,4 +356,7 @@ begin
 
   run_with_callables(repeats)
   run_with_params(repeats)
+
+rescue => e
+  $stderr.puts("Please ensure the Application is Started on Port: 8585.  Error: #{e.class.name}, Msg: #{e.message}")
 end

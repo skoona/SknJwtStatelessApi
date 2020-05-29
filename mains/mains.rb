@@ -1,4 +1,6 @@
 require_relative 'user'
+require_relative 'handle_authentication'
+require_relative 'handle_stateless'
 require_relative 'jwt_authenticator'
 require_relative 'jwt_auth_filter'
 require_relative 'jwt_stateless_api'

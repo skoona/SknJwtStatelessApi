@@ -1,5 +1,5 @@
 class JwtAuthFilter
-  SknApp.logger.debug "Entering #{self.name} as PreAuthorization!"
+  SknApp.logger.debug "Entering #{self.name} as JWT Filter!"
 
   def initialize app
     @app = app
