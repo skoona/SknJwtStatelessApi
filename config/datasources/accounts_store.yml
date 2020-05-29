@@ -1,10 +1,10 @@
 ---
 :emowner:
   :username: emowner
-  :balance: 98640
+  :balance: 91940
 :emkeeper:
   :username: emkeeper
-  :balance: 225200
+  :balance: 648300
 :emuser:
   :username: emuser
   :balance: 50000
@@ -13,10 +13,10 @@
   :balance: 1200
 :bmagent:
   :username: bmagent
-  :balance: 1000
+  :balance: 2500
 :bmproducer:
   :username: bmproducer
-  :balance: 1000
+  :balance: 2500
 :bmartist:
   :username: bmartist
-  :balance: 1000
+  :balance: 2500

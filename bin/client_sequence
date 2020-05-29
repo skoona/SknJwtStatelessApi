@@ -60,14 +60,14 @@ end
 
 class CommonElements
   @@new_users = [
-      {username: "bmagent",    userpass: "bmagent pwd" },
-      {username: "bmproducer", userpass: "bmproducer pwd" },
-      {username: "bmartist",   userpass: "bmartist pwd" }
+      {action: :register, username: "bmagent",    userpass: "bmagent pwd" },
+      {action: :register, username: "bmproducer", userpass: "bmproducer pwd" },
+      {action: :register, username: "bmartist",   userpass: "bmartist pwd" }
   ]
   @@existing_users = [
-      {username: "emowner",    userpass: "emowner pwd" },
-      {username: "emkeeper",   userpass: "emkeeper pwd" },
-      {username: "emuser",     userpass: "emuser pwd" }
+      {action: :authenticate, username: "emowner",    userpass: "emowner pwd" },
+      {action: :authenticate, username: "emkeeper",   userpass: "emkeeper pwd" },
+      {action: :authenticate, username: "emuser",     userpass: "emuser pwd" }
   ]
 
 
@@ -133,6 +133,9 @@ class CommonElements
     results
   end
 
+  def list_of_users
+    (@@existing_users + @@new_users).flatten
+  end
   def self.existing_users
     @@existing_users
   end
@@ -158,9 +161,9 @@ class CommonElements
   end
 end
 
-class NewUserWorkflow < CommonElements
+class WorkflowProcessor < CommonElements
   ##
-  # register
+  # register (if action: :register)
   # authenticate
   # -- extract jwt
   # repeat x
@@ -171,19 +174,22 @@ class NewUserWorkflow < CommonElements
   # unregister
   # return [reg,auth, [view,add,del][][]..., [delete_all,view],unreg]
   #
-  # {users: [{username: "emowner",    userpass: "emowner pwd" }] or nil/empty, repeats: 1, money: 100}
+  # {users: [{action: :authenticate, username: "emowner",    userpass: "emowner pwd" },...], repeats: 1, money: 100}
   def call(opts)
+    action  = opts.fetch(:action, :register) # :authenticate
     money   = opts.fetch(:money, 500)
     repeats = opts.fetch(:repeats, 2)
-    users   = opts.fetch(:users, new_users)
+    users   = opts.fetch(:users, list_of_users)
 
-    if users.nil? || users.empty? || users.first.empty?
-      users = new_users
+    if  opts[:users].nil? || opts[:users].empty?
+      users = existing_users if action.to_s.eql?("authenticate")
+      users = new_users      if action.to_s.eql?("register")
+      users = list_of_users  if action.to_s.eql?("all")
     end
 
     SknSuccess.(
       users.collect do |work|
-        workflow(work[:username], work[:userpass], repeats, money)
+        workflow(work[:action], work[:username], work[:userpass], repeats, money)
       end
     )
   rescue => ex
@@ -191,63 +197,68 @@ class NewUserWorkflow < CommonElements
     SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace.first.split("/").last}")
   end
 
-  def workflow(username, password, repeats=20, money=500)
-    reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/register"})
-    reg = execute_request(reg_cmd)
-    return reg unless reg.success
+  def workflow(action, username, password, repeats=20, money=500)
+    reg_cmd = nil
+    reg = nil
+    unreg = nil
+    if action.to_s.eql?("register")
+      reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/register"})
+      reg = execute_request(reg_cmd)
+        return reg unless reg.success
+      unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/unregister" })
+    end
 
     auth_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/authenticate"})
     aut = execute_request(auth_cmd)
     return aut unless aut.success
 
-    unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/unregister" })
-
     process(aut, repeats, money, reg, unreg)
   end
-
 end
 
-class ExistingUserWorkflow < CommonElements
-##
-# authenticate
-# -- extract jwt
-# repeat x
-#   view money
-#   add  money
-#   delete 1/2 money last added
-# delete balance (repeat * (money /2)
-# return [auth, [view,add,del][][]..., delete_all]
-#
-# {users: [{username: "emowner",    userpass: "emowner pwd" } or nil/empty, repeats: 1, money: 100}
-  def call(opts)
-    money   = opts.fetch(:money, 500)
-    repeats = opts.fetch(:repeats, 2)
-    users   = opts.fetch(:users, existing_users)
-
-    if users.nil? || users.empty? || users.first.empty?
-      users = existing_users
+def metric_formatter(skn, timestamp)
+  return "Metrics not available! #{skn.message}" unless skn.success
+  # {
+  #     ipl_timestamp: Time.now.getlocal.strftime('%Y-%m-%d %H:%M:%S.%N %z'),
+  #     timestamp: Time.now.getlocal.strftime('%Y-%m-%d %H:%M:%S.%N %z'),
+  #     app_version: Skn::VERSION,
+  #     active_environment: SknApp.env,
+  #     api_version: 'v1',
+  #     admin_events: 0,
+  #     registrations: 0,
+  #     reg_failures: 0,
+  #     unregisters: 0,
+  #     unreg_failures: 0,
+  #     authentications: 0,
+  #     auth_failures: 0,
+  #     not_found_failures: 0,
+  #     account_transactions: 0,
+  #     credential_transactions: 0,
+  #     api_view_money_requests: 0,
+  #     api_add_money_requests: 0,
+  #     api_remove_money_requests: 0,
+  #     uncaught_exceptions: 0,
+  #     jwt_tokens_issued: 0,
+  #     jwt_audience: SknSettings.idp.audience,
+  #     credentials_storage: File.size?(SknSettings.datasources.credentials),
+  #     accounts_storage: File.size?(SknSettings.datasources.accounts)
+  # }
+  buffer = "\n\t\t\t---[ METRICS ]--- Duration: #{timestamp}\n"
+  per_line = 0
+  skn.value["metrics"].each_pair do |k,v|
+    val = v
+    if v.to_s.match(/[:|-]/)
+      val = v.to_s[1..-12]
     end
-
-    SknSuccess.(
-        users.collect do |work|
-          workflow(work[:username], work[:userpass], repeats, money)
-        end
-    )
-  rescue => ex
-    $stderr.puts ex
-    SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace.first.split("/").last}")
+    per_line += 1
+    if ((per_line % 3) == 0)
+      buffer += "\t\t\t#{k.to_s.rjust(26)}: #{val.to_s.ljust(18)}\n"
+    else
+      buffer += "\t#{k.to_s.rjust(26)}: #{val.to_s.ljust(20)}"
+    end
   end
-
-  def workflow(username, password, repeats=20, money=500)
-    auth_cmd = SknUtils::CommandJSONPost.call({username: username,  userpass: password,  full_url: "http://localhost:8585/authenticate" })
-    aut = execute_request(auth_cmd)
-    return aut unless aut.success
-
-    process(aut, repeats, money)
-  end
+  buffer
 end
-
-
 
 # Result Structure
 # two top level jobs existing and new users
@@ -269,21 +280,23 @@ def result_formatter(results, timestamp, repeats)
   puts "Top Level Job: #{results.class.name}, Status: #{results.success?}, Message: #{results.messages}, Repeats: #{repeats},  Duration: #{timestamp},  Contains: #{results.values.count} work units"
   results.values.each do |trans|
     puts "\tWork Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.count} elements"
-    trans.value.each do |ele|
-      ele.each do |element|
+    trans.value.each_with_index do |ele, unit|
+      ele.each_with_index do |element, rep|
+        rps = rep - 1
         if element.is_a?(Array)
           element.each_with_index do |wu,idx|
             if (wu.value.respond_to?(:keys) ? (wu.value.keys.include?('metrics') ? true : false) : false)
-              puts "\t\tWorkflow Metrics: #{wu.class.name}, Metrics: #{wu.value["metrics"]}\n\n"
+              metrics = metric_formatter(wu, timestamp)
+              puts "\t\tWorkflow Metrics: #{wu.class.name}, Metrics: #{metrics}\n\n"
             else
-              puts "\t\t\t#{"%02d" % idx}~> Workflow Element: #{wu.class.name}, Message: #{wu.message}, Contains: #{wu.value.respond_to?(:keys) ? wu.value.keys : wu.value}"
+              puts "\t\t\t#{"%04d" % rps}:#{"%03d" % idx}~> Workflow Element: #{wu.class.name}, Message: #{wu.message}, Contains: #{wu.value.respond_to?(:keys) ? wu.value.keys : wu.value}"
             end
           end
         else
           if element.value["token"]
-            puts "\t\tWorkflow Authorization: #{element.class.name}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value}"
+            puts "\t\t#{"%04d" % unit} Workflow Authorization: #{element.class.name}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value}"
           elsif element.value["message"]
-            puts "\n\t\tWorkflow Register: #{element.class.name}, Contains: #{element.value}"
+            puts "\n\t\t#{"%04d" % unit} Workflow Register: #{element.class.name}, Contains: #{element.value}"
           else
             puts "\t\tWorkflow Cleanup: #{element.class.name}, Message: #{element.message}, Contains: #{element.value.respond_to?(:keys) ? element.value.keys : element.value} elements"
           end
@@ -294,15 +307,11 @@ def result_formatter(results, timestamp, repeats)
   true
 end
 
-# ##
-# MainLine
-# ##
-#
 def run_with_callables(repeats = 1)
 
   commands =[
-      ->(repeats){ExistingUserWorkflow.({users: [], repeats: repeats, money: 100})},
-      ->(repeats){NewUserWorkflow.({users: [], repeats: repeats, money: 100})}
+      ->(repeats){WorkflowProcessor.({action: :authenticate, users: [], repeats: repeats, money: 100})},
+      ->(repeats){WorkflowProcessor.({action: :register, users: [], repeats: repeats, money: 100})}
   ]
 
   # Initialize the queue with Async Workers by default
@@ -346,33 +355,28 @@ end
 def run_with_params(repeats = 1)
 
   commands =[
-      {users: CommonElements.existing_users , repeats: repeats, money: 100},
-      {users: CommonElements.existing_users , repeats: repeats, money: 100}
+      {action: :authenticate, users: CommonElements.existing_users , repeats: repeats, money: 100},
+      {action: :register, users: CommonElements.new_users , repeats: repeats, money: 100}
   ]
 
   # Initialize the queue with Async Workers by default
   provider = SknUtils::ConcurrentJobs.call
 
   # Populate WorkQueue
-  provider.register_jobs(commands, ExistingUserWorkflow)
+  provider.register_jobs(commands, WorkflowProcessor)
 
   # Execute WorkQueue
   result = provider.render_jobs
-
-  # if result.success?
-  #   puts "Success: true"
-  #   puts "Values: #{result.values}"
-  #   puts "Messages: #{result.messages}"
-  # else
-  #   puts "Success: false - errors: #{result.messages.join(', ')}"
-  #   puts "Values: #{result.values}"
-  # end
 
   result_formatter result, provider.elapsed_time_string, repeats
 rescue => e
   $stderr.puts e.message, e.backtrace
 end
 
+# ##
+# MainLine
+# ##
+#
 begin
   repeats = (ARGV[0] || "10").to_i
 

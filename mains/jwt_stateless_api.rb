@@ -2,6 +2,7 @@ class JwtStatelessApi < Roda
   SknApp.logger.debug "Entering #{self.name} as Application!"
 
   use JwtAuthFilter
+
   plugin :json
   plugin :json_parser
   plugin :all_verbs
