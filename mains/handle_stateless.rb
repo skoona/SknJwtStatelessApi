@@ -27,7 +27,13 @@ module HandleStateless
   ##
   # Handle API Actions
   def process_request req, scope
-    if current_user(req).roles.include?(scope) && account_for(current_user(req).username).success
+    authorized = if scope.is_a?(Array)
+      scope.any? {|scp| current_user(req).roles.include?(scp)}
+    else
+      current_user(req).roles.include?(scope)
+    end
+
+    if authorized && account_for(current_user(req).username).success
       yield req, current_user(req).username
     else
       req.halt [Rack::Utils.status_code(:forbidden), { 'Content-Type' => 'application/json' }, [{error: 'NotAuthorized', errorDetails: "You are not authorized to access: #{scope}"}.to_json]]

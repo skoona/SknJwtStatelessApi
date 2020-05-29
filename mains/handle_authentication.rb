@@ -59,10 +59,11 @@ module HandleAuthentication
 
   def payload(username, scopes)
     SknApp.metadata[:jwt_tokens_issued] += 1
+    expires_in = SknSettings.idp.jwt_expires_in_seconds
     {
-        exp: Time.now.getlocal.to_i + 60 * 60,
+        exp: Time.now.getlocal.to_i + expires_in,
         iat: Time.now.getlocal.to_i,
-        nbf: Time.now.getlocal.to_i - 3600,
+        nbf: Time.now.getlocal.to_i - expires_in,
         iss: SknSettings.idp.issuer,
         aud: SknSettings.idp.audience,
         sub: username,

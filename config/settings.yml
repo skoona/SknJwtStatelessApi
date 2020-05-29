@@ -15,6 +15,7 @@ datasources:
 idp:
   secret: <%= ENV.fetch('JWT_SECRET', "sknSuperSecrets") %>
   issuer: <%= ENV.fetch('JWT_ISSUER', "skoona.net") %>
+  jwt_expires_in_seconds: 3600  # 1 hour
   :audience:
     - InternalUseOnly
 

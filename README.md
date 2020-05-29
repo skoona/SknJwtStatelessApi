@@ -46,7 +46,9 @@ WebServer
                                           >{username:"anyUser",scopes:[all-scopes]}
 
 #### Client Example
-Produces this summary status from the /status api method.
+Produces this summary status from the /status api method.  I needed a way to exercise the api endpoints 
+beyond rspec tests.  The result is this client script that run against a running instance of this application and can run 
+multiple repetitions of the same workflow.
 
     $ ./bin/client_sequence 25         //<repeat-workflow-times>    
 ```text
@@ -65,7 +67,7 @@ Produces this summary status from the /status api method.
 
 ### Potential UseCases
 #### Existing User
-1. POST <host>/authenticate   -- to receive a JWT Token using new creds     
+1. POST <host>/authenticate   -- to receive a JWT Token using existing creds     
 2. GET  <host>/api/v1/money   -- to view initial money balance
 3. POST <host>/api/v1/money?amount=100   -- to ADD money
 4. GET  <host>/api/v1/money              -- to VIEW money 
@@ -82,6 +84,13 @@ Produces this summary status from the /status api method.
 6. DELETE <host>/api/v1/money?amount=10  -- to REMOVE money: Not Authorized for New Users
 7. GET  <host>/api/v1/money              -- to VIEW money ~~ 100
 8. `Stateless` does not require a logoff
+
+#### Administration Actions
+* POST <host>/authenticate   -- to receive a JWT Token using 'emadmin'/'emadmin pwd' creds
+* GET  <host>/api/v1/admin   -- List All Users and their Permission 
+* PUT  <host>/api/v1/admin   -- Update ANY existing users credentials (password or scopes) 
+* DELETE <host>/unregister   -- Unregister or Remove an existing user 
+* GET  <host>/status         -- Retrieve application status and metrics     
 
 
 ## Installation
@@ -172,6 +181,10 @@ ENV['JWT_SECRET'] = 'sknSuperSecrets'
     ├── puma.log
     └── puma.state
 ```
+
+### Influence
+Inspired by ideas in this article by [Alex Sears](https://dzone.com/articles/ruby-authentication-secure-your-rack-application-w)
+
 
 ## Contributing
 

@@ -70,12 +70,13 @@ class CommonElements
       {action: :authenticate, username: "emuser",     userpass: "emuser pwd" }
   ]
 
+  attr_reader :base_host_url, :admin_jwt_header
 
   def self.call(work, opts={})
     new(opts).call(work)
   end
 
-  def call(opts)
+  def call(work)
     raise NotImplementedError.new("You should code this method in your subclass[es]!")
   end
 
@@ -98,12 +99,12 @@ class CommonElements
   end
 
   def prepare_core_commands(jwt_header, money, repeats)
-    users      = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "http://localhost:8585/api/v1/admin" })
-    view_cmd   = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "http://localhost:8585/api/v1/money" })
-    add_cmd    = SknUtils::CommandJSONPost.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: money} })
-    delete_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: (money / 2)} })
-    delete_all_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "http://localhost:8585/api/v1/money", payload: {amount: (repeats * (money / 2))} })
-    stats = SknUtils::CommandJSONGet.call({full_url: "http://localhost:8585/status"})
+    users      = SknUtils::CommandJSONGet.call({ headers: admin_jwt_header, full_url: "#{base_host_url}/api/v1/admin" })
+    view_cmd   = SknUtils::CommandJSONGet.call({ headers: jwt_header, full_url: "#{base_host_url}/api/v1/money" })
+    add_cmd    = SknUtils::CommandJSONPost.call({headers: jwt_header, full_url: "#{base_host_url}/api/v1/money", payload: {amount: money} })
+    delete_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "#{base_host_url}/api/v1/money", payload: {amount: (money / 2)} })
+    delete_all_cmd = SknUtils::CommandJSONPDelete.call({headers: jwt_header, full_url: "#{base_host_url}/api/v1/money", payload: {amount: (repeats * (money / 2))} })
+    stats = SknUtils::CommandJSONGet.call({full_url: "#{base_host_url}/status"})
 
     {core: [view_cmd,add_cmd,delete_cmd], cleanup: [delete_all_cmd, view_cmd, users, stats]}
   end
@@ -115,7 +116,7 @@ class CommonElements
 
     results = [auth]
     if unregister.present?
-      work_plans[:cleanup].insert(-2, unreg_cmd)
+      work_plans[:cleanup].insert(-3, unreg_cmd)
       results.unshift(unregister)
     end
 
@@ -154,6 +155,12 @@ class CommonElements
 
   def initialize(opts={})
     @opts = opts
+    @base_host_url = opts.fetch(:base_host_url, "http://localhost:8585")
+    username = opts.fetch(:username, "emadmin")
+    password = opts.fetch(:password, "emadmin pwd")
+
+    cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/authenticate"})
+    @admin_jwt_header = apply_authentication( execute_request(cmd) )
   end
 end
 
@@ -168,7 +175,8 @@ class WorkflowProcessor < CommonElements
   #   delete 1/2 money last added
   # delete balance (repeat * (money /2)
   # unregister
-  # return [reg,auth, [view,add,del][][]..., [delete_all,view],unreg]
+  #         header     repeats                footer = repeats + 1
+  # return [*reg,auth, [view,add,del][][]..., [delete_all,view,users,*unreg,stats]
   #
   # {users: [{action: :authenticate, username: "emowner",    userpass: "emowner pwd" },...], repeats: 1, money: 100}
   def call(opts)
@@ -176,12 +184,14 @@ class WorkflowProcessor < CommonElements
     money   = opts.fetch(:money, 500)
     repeats = opts.fetch(:repeats, 2)
     users   = opts.fetch(:users, list_of_users)
+    repeats = 2 if repeats < 1
 
     if  opts[:users].nil? || opts[:users].empty?
       users = existing_users if action.to_s.eql?("authenticate")
       users = new_users      if action.to_s.eql?("register")
       users = list_of_users  if action.to_s.eql?("all")
     end
+
 
     SknSuccess.(
       users.collect do |work|
@@ -198,13 +208,13 @@ class WorkflowProcessor < CommonElements
     reg = nil
     unreg = nil
     if action.to_s.eql?("register")
-      reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/register"})
+      reg_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/register"})
       reg = execute_request(reg_cmd)
         return reg unless reg.success
-      unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/unregister" })
+      unreg = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/unregister" })
     end
 
-    auth_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "http://localhost:8585/authenticate"})
+    auth_cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/authenticate"})
     aut = execute_request(auth_cmd)
     return aut unless aut.success
 
@@ -243,6 +253,23 @@ def metric_formatter(skn, timestamp)
   buffer
 end
 
+def users_formatter(skn)
+  return "Users not available! #{skn.message}" unless skn.success
+  buffer = "\n\t\t---[ USERS ]---\n"
+  per_line = 0
+  skn.value["users"].each do |user|
+    scopes = "none"
+    scopes = user["scopes"].join(",").ljust(35) unless  user["scopes"].nil?
+    per_line += 1
+    if ((per_line % 3) == 0)
+      buffer += "\t\t#{user["username"].to_s.rjust(20)}: #{scopes}\n"
+    else
+      buffer += "\t#{user["username"].to_s.rjust(20)}: #{scopes}"
+    end
+  end
+  buffer += "\n"
+end
+
 # Result Structure
 # two top level jobs existing and new users
 #  [ SknSuccess.value(
@@ -260,6 +287,7 @@ end
 # where cleanups are: [delete_all_cmd, view_cmd, stats] or [delete_all_cmd, view_cmd, unreg, stats] ; one per user
 # each entry is either a SknSuccess or SknFailure object
 def result_formatter(results, timestamp, repeats)
+  footer = repeats + 1
   puts "Top Level Job: #{results.class.name}, Status: #{results.success?}, Message: #{results.messages}, Repeats: #{repeats},  Duration: #{timestamp},  Contains: #{results.values.count} work units"
   results.values.each do |trans|
     puts "\tWork Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.count} elements"
@@ -271,8 +299,13 @@ def result_formatter(results, timestamp, repeats)
             if (wu.value.respond_to?(:keys) ? (wu.value.keys.include?('metrics') ? true : false) : false)
               metrics = metric_formatter(wu, timestamp)
               puts "\t\tWorkflow Metrics: #{wu.class.name}, Metrics: #{metrics}\n\n"
+            elsif (wu.value.respond_to?(:keys) ? (wu.value.keys.include?('users') ? true : false) : false)
+              users = users_formatter(wu)
+                puts "\t\tWorkflow Users: #{wu.class.name}, Users: #{users}\n"
+            elsif rps == footer
+              puts "\t\tWorkflow Footer: #{wu.class.name}, Message: #{wu.message}, Contains: #{wu.value}"
             else
-              puts "\t\t\t#{"%04d" % rps}:#{"%03d" % idx}~> Workflow Element: #{wu.class.name}, Message: #{wu.message}, Contains: #{wu.value.respond_to?(:keys) ? wu.value.keys : wu.value}"
+              puts "\t\t\t#{"%04d" % rps}:#{"%03d" % idx}~> Workflow Element: #{wu.class.name}, Message: #{wu.message}, Contains: #{wu.value}"
             end
           end
         else
@@ -298,7 +331,7 @@ def run_with_callables(repeats = 1)
   ]
 
   # Initialize the queue with Async Workers by default
-  provider = SknUtils::ConcurrentJobs.call
+  provider = SknUtils::ConcurrentJobs.call(async: true)
 
   #
   # The provided workers think the command are params to an executable
@@ -334,7 +367,7 @@ def run_with_params(repeats = 1)
   ]
 
   # Initialize the queue with Async Workers by default
-  provider = SknUtils::ConcurrentJobs.call
+  provider = SknUtils::ConcurrentJobs.call(async: true)
 
   # Populate WorkQueue
   provider.register_jobs(commands, WorkflowProcessor)

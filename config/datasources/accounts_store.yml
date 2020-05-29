@@ -1,22 +1,22 @@
 ---
+:emadmin:
+  :username: emadmin
+  :balance: 0
 :emowner:
   :username: emowner
-  :balance: 91940
+  :balance: 105000
 :emkeeper:
   :username: emkeeper
-  :balance: 851800
+  :balance: 57900
 :emuser:
   :username: emuser
   :balance: 50000
-:apple:
-  :username: apple
-  :balance: 1200
 :bmagent:
   :username: bmagent
-  :balance: 50000
+  :balance: 10000
 :bmproducer:
   :username: bmproducer
-  :balance: 50000
+  :balance: 10000
 :bmartist:
   :username: bmartist
-  :balance: 50000
+  :balance: 10000
