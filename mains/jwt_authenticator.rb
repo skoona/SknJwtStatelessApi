@@ -32,7 +32,7 @@ class JwtAuthenticator < Roda
     end
 
     r.is "authenticate" do
-      res = validate_user(request.env)
+      res = validate_user(env)
       if res.success
         SknApp.metadata[:authentications] += 1
         { token: token(res) }
@@ -43,7 +43,7 @@ class JwtAuthenticator < Roda
     end
 
     r.is "register" do
-      res = register_user(request.env)
+      res = register_user(env)
       if res.success
         response.status = 202
         SknApp.metadata[:registrations] += 1
@@ -56,7 +56,7 @@ class JwtAuthenticator < Roda
 
     r.is "unregister" do
       r.delete do
-        res = unregister_user(request.env)
+        res = unregister_user(env)
         if res.success
           response.status = 202
           SknApp.metadata[:unregisters] += 1

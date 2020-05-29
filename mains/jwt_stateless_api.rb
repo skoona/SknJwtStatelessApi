@@ -74,6 +74,14 @@ class JwtStatelessApi < Roda
           res.value.to_hash
         end
       end
+
+      r.delete  do # delete user account
+        SknApp.metadata[:admin_events] += 1
+        process_request request, 'admin' do |req, username|
+          res = admin_delete_user(r.params["username"])
+          res.value.to_hash.merge(comment: res.message)
+        end
+      end
     end
 
   end # end routes

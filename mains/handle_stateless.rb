@@ -24,6 +24,19 @@ module HandleStateless
     @_user ||= request.env[:user]
   end
 
+  def admin_delete_user(username)
+    res = res = SknFailure.({username: "", scopes: []}, "Unregister Failure!")
+    if username
+      res = SknApp.registry.resolve("users-datasource").admin_delete(username)
+      SknApp.logger.debug("#{__method__}() #{res.message}")
+    end
+    res
+  rescue => e
+    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+  end
+
+
   ##
   # Handle API Actions
   def process_request req, scope

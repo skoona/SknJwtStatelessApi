@@ -33,7 +33,7 @@ WebServer
 
     Authorization:Basic <B64(username:password)> ANY <host:port>/authenticate     Validate and return JWT Token
     Authorization:Basic <B64(username:password)> ANY <host:port>/register         Enroll a new user with password
-    Authorization:Basic <B64(username:password)> DELETE <host:port>/unregister    Delete Authenticated User
+    Authorization:Basic <B64(username:password)> DELETE <host:port>/unregister    Removes SELF completely from the system
 
     Authorization:Bearer <token> GET    <host:port>/api/v1/money                  View Balance
     Authorization:Bearer <token> POST   <host:port>/api/v1/money                  Add amount to Balance
@@ -44,6 +44,8 @@ WebServer
     Authorization:Bearer <token> GET    <host:port>/api/v1/admin                  Lists all users with their permissions
     Authorization:Bearer <token> PUT    <host:port>/api/v1/admin                  Updates an Existing Users Scopes/Roles/Permissions
                                           >{username:"anyUser",scopes:[all-scopes]}
+    Authorization:Bearer <token> DELETE <host:port>/api/v1/admin                  Remove any user completely from the system
+                                          >{username:"anyUser"}
 
 #### Client Example
 Produces this summary status from the /status api method.  I needed a way to exercise the api endpoints 
@@ -89,7 +91,8 @@ multiple repetitions of the same workflow.
 * POST <host>/authenticate   -- to receive a JWT Token using 'emadmin'/'emadmin pwd' creds
 * GET  <host>/api/v1/admin   -- List All Users and their Permission 
 * PUT  <host>/api/v1/admin   -- Update ANY existing users credentials (password or scopes) 
-* DELETE <host>/unregister   -- Unregister or Remove an existing user 
+* DELETE <host>/unregister   -- Unregister SELF! (basic Creds)
+* DELETE <host>/api/v1/admin -- Remove user account (JWT Creds) (Admin)
 * GET  <host>/status         -- Retrieve application status and metrics     
 
 

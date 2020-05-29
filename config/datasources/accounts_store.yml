@@ -4,10 +4,10 @@
   :balance: 0
 :emowner:
   :username: emowner
-  :balance: 100000
+  :balance: 99650
 :emkeeper:
   :username: emkeeper
-  :balance: 285200
+  :balance: 307200
 :emuser:
   :username: emuser
   :balance: 50000

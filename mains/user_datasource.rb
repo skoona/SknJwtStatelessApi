@@ -22,7 +22,24 @@ class UserDatasource
       SknFailure.({username: username, scopes: scopes}, "Registration of #{username} with #{scopes} failed!")
     end
   rescue => e
-    msg =  "#{self.class.name}##{__method__} Create Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace=#{e.backtrace[0..4]}"
+    msg =  "#{self.class.name}##{__method__} Create Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace: #{failure_lines(e)}"
+    SknApp.logger.warn(msg)
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+  end
+
+  def admin_delete(username)
+    options = {username: username}
+    if username
+      if credentials_delete(options) && accounts_delete(options)
+        SknSuccess.({username: username, scopes: []},"Unregister #{username} Succeeded!")
+      else
+        SknFailure.({username: username, scopes: []}, "Unregister #{username} failed!")
+      end
+    else
+      SknFailure.({username: username, scopes: []}, "Unregister #{username} failed!")
+    end
+  rescue => e
+    msg =  "#{self.class.name}##{__method__} Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace: #{failure_lines(e)}"
     SknApp.logger.warn(msg)
     SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
@@ -40,7 +57,7 @@ class UserDatasource
       auth
     end
   rescue => e
-    msg =  "#{self.class.name}##{__method__} Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace=#{e.backtrace[0..4]}"
+    msg =  "#{self.class.name}##{__method__} Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace: #{failure_lines(e)}"
     SknApp.logger.warn(msg)
     SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
@@ -56,7 +73,7 @@ class UserDatasource
       SknFailure.({username: username, scopes: []}, "Invalid Credentials #{username}")
     end
   rescue => e
-    msg =  "#{self.class.name}##{__method__} Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace=#{e.backtrace[0..4]}"
+    msg =  "#{self.class.name}##{__method__} Failed: klass=#{e.class.name}, cause=#{e.message}, Backtrace: #{failure_lines(e)}"
     SknApp.logger.warn(msg)
     SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
   end
@@ -127,7 +144,7 @@ class UserDatasource
       false
     end
   rescue => e
-    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}]"
+    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}], Backtrace: #{failure_lines(e)}"
     false
   end
   def credentials_delete(value)
@@ -141,7 +158,7 @@ class UserDatasource
       false
     end
   rescue => e
-    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}]"
+    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}], Backtrace: #{failure_lines(e)}"
     false
   end
 
@@ -156,7 +173,7 @@ class UserDatasource
       false
     end
   rescue => e
-    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}]"
+    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}], Backtrace: #{failure_lines(e)}"
     false
   end
   def accounts_delete(value)
@@ -170,7 +187,7 @@ class UserDatasource
       false
     end
   rescue => e
-    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}]"
+    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, with inputData: [#{value}], Backtrace: #{failure_lines(e)}"
     false
   end
 
@@ -185,7 +202,7 @@ class UserDatasource
         ds
       end
     rescue => e
-      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, Backtrace: #{failure_lines(e)}"
       false
     end
   end
@@ -200,7 +217,7 @@ class UserDatasource
         ds
       end
     rescue => e
-      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, Backtrace: #{failure_lines(e)}"
       false
     end
   end
@@ -218,7 +235,7 @@ class UserDatasource
     end
     @_credentials = pkg
   rescue => e
-    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, Backtrace: #{failure_lines(e)}"
     nil
   end
 
@@ -235,7 +252,7 @@ class UserDatasource
     end
     @_accounts = pkg
   rescue => e
-    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+    SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, Backtrace: #{failure_lines(e)}"
     nil
   end
 
@@ -249,9 +266,13 @@ class UserDatasource
         accounts_restore
       end
     rescue => e
-      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }"
+      SknApp.logger.warn "#{self.class.name}##{__method__}: #{e.class} causedBy #{ e.message }, Backtrace: #{failure_lines(e)}"
       nil
     end
+  end
+
+  def failure_lines(e)
+    failures = e.backtrace.map {|x| x.split("/").last }.join(",")
   end
 
   def initialize
