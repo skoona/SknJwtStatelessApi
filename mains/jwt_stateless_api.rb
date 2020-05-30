@@ -30,7 +30,7 @@ class JwtStatelessApi < Roda
       r.get do
         SknApp.metadata[:api_view_money_requests] += 1
         process_request request, 'view_money' do |req, username|
-          { money: account_balance_for(username) }
+          { money: account_balance_for(username), action: "Balance $#{amount}.00 of #{username}'s account'" }
         end
       end
 
@@ -40,7 +40,7 @@ class JwtStatelessApi < Roda
           amount = req[:amount]
           new_amount = ( account_balance_for(username) + amount.to_i )
           account_update_for(username, new_amount)
-          { money: new_amount }
+          { money: new_amount, action: "Added $#{amount}.00 to #{username}'s account'" }
         end
       end
 
@@ -53,7 +53,7 @@ class JwtStatelessApi < Roda
             new_amount = 0
           end
           account_update_for(username, new_amount)
-          { money: new_amount }
+          { money: new_amount, action: "Withdrew $#{amount}.00 from #{username}'s account'" }
         end
       end
     end
