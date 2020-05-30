@@ -125,7 +125,7 @@ ENV['JWT_SECRET'] = 'sknSuperSecrets'
 * [SknUtils](https://github.com/skoona/skn_utils) 
     * Common utilities, dependencyInjection, Configuration, Application Supports
 * [JWT](https://github.com/jwt/ruby-jwt)
-    * Jason Web Token, security token influenced by [JWT Scopes and Claims](https://auth0.com/docs/scopes/current/sample-use-cases#authenticate-a-user-and-request-standard-claims)
+    * Json Web Token, security token influenced by [JWT Scopes and Claims](https://auth0.com/docs/scopes/current/sample-use-cases#authenticate-a-user-and-request-standard-claims)
 * [PStore](https://ruby-doc.org/stdlib-2.2.1/libdoc/yaml/rdoc/YAML/Store.html)
     * Yaml file database for local user/account persistence
 
