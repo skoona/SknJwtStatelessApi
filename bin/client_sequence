@@ -1,6 +1,16 @@
 #!/usr/bin/env ruby
 #
-# file: ./bin/client_sequence
+# file: ./bin/client_sequence repeats host-url
+#
+# Example: $ ./bin/client_sequence 25 http://localhost:8585
+#
+# Description
+#
+# The SknUtils Gem contains a ConcurrentJobs module that executes a list of commands a thread for each command.
+# Where a command is a collection of data values by a executable job worker to do complete the work.
+#
+# The invocation pattern for this module is flexible and defaults to `command.call(worker)`.  I've added a second
+# job using a proc that flips the pattern to `worker.call(command)` just to illustrate it's flexibility.
 #
 
 require 'bundler/setup'
@@ -263,10 +273,12 @@ def result_formatter(results, timestamp, repeats, name)
     puts "\t#{"%04d" % base} Work Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.respond_to?(:count) ? trans.value.count : trans.value}"
     trans.value.each_with_index do |ele, unit|
       header_lines = 0
+
       unless ele.respond_to?(:each_with_index)
         puts "\t\t\tUnit:#{"%04d" % base}, Step:#{"%03d" % unit}~> Workflow #{ele.class.name}, Message: #{ele.message}, Contains: #{ele.value}"
         next
       end
+
       ele.each_with_index do |element, rep|
         if element.is_a?(Array)
           element.each_with_index do |wu,idx|        # 3 average
@@ -321,7 +333,7 @@ def run_with_callables(repeats = 1, base_host_url=nil)
         job.call(command)
       rescue => ex
         $stderr.puts ex
-        SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace[0]}")
+        SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace.map {|x| x.split("/").last }.join(",")}")
       end
     end
   end

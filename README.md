@@ -49,10 +49,10 @@ WebServer
 
 #### Client Example
 Produces this summary status from the /status api method.  I needed a way to exercise the api endpoints 
-beyond rspec tests.  The result is this client script that run against a running instance of this application and can run 
+beyond rspec tests.  The result is this client script that runs against a instance of this application and can run 
 multiple repetitions of the same workflow.
 
-    $ ./bin/client_sequence 25         //<repeat-workflow-times>    
+    $ ./bin/client_sequence 25    http://localhost:8585     # <repeat-workflow-times> <host-url-and-port>    
 ```text
 
                     Workflow Metrics: SknSuccess, Metrics:
