@@ -4,7 +4,7 @@
 class JwtStatelessApi < Roda
   include HandleStateless
 
-  SknApp.logger.debug "Entering #{self.name} as Application! Path: (/api/v1/[money,admin])"
+  SknApp.logger.debug "Entering #{self.name} as Application! Path: (/api/v1/[money,admin]) by #{request.env[:user]&.username}"
 
   use JwtAuthFilter
 
