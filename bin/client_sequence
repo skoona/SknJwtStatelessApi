@@ -44,8 +44,8 @@ class CommonElements
     SknUtils::HttpProcessor.call(command)   # mis-spelling these params result in [SknFailure, SknFailure, ...] results
   rescue => ex
     $stderr.puts ex
-    $stderr.puts "#{ex.message}; #{ex.backtrace.join("\n")}"
-    SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace[0]}")
+    $stderr.puts "#{ex.message}; #{failure_lines(ex)}"
+    SknFailure.(ex.class.name, "#{ex.message}; #{failure_lines(ex)}")
   end
 
   def prepare_core_commands(jwt_header, money, repeats)
@@ -104,6 +104,10 @@ class CommonElements
     singleton_class.new_users
   end
 
+  def failure_lines(e)
+    failures = e.backtrace.map {|x| x.split("/").last }.join(",")
+  end
+
   def initialize(opts={})
     @opts = opts
     @base_host_url = opts.fetch(:base_host_url, "http://localhost:8585")
@@ -129,11 +133,12 @@ class WorkflowProcessor < CommonElements
   #         header     repeats                footer = repeats + 1
   # return [*reg,auth, [view,add,del][][]..., [delete_all,view,users,*unreg,stats]
   #
-  # {users: [{action: :authenticate, username: "emowner",    userpass: "emowner pwd" },...], repeats: 1, money: 100}
+  # {users: [{action: :authenticate, username: "emowner",    userpass: "emowner pwd" },...], repeats: 1, money: 100, base_host_url: hostname_uri}
   def call(opts)
     action  = opts.fetch(:action, :register) # :authenticate
     money   = opts.fetch(:money, 500)
     repeats = opts.fetch(:repeats, 2)
+    @base_host_url = opts.fetch(:base_host_url, "http://localhost:8585")
     users   = opts.fetch(:users, list_of_users)
     repeats = 2 if repeats < 1
 
@@ -151,7 +156,7 @@ class WorkflowProcessor < CommonElements
     )
   rescue => ex
     $stderr.puts ex
-    SknFailure.(ex.class.name, "#{ex.message}; #{ex.backtrace.first.split("/").last}")
+    SknFailure.(ex.class.name, "#{ex.message}; #{failure_lines(ex)}")
   end
 
   def workflow(action, username, password, repeats=20, money=500)
@@ -255,9 +260,13 @@ end
 def result_formatter(results, timestamp, repeats, name)
   puts "JobName: #{name},  #{results.class.name}, Status: #{results.success?}, Message: #{results.messages}, Repeats: #{repeats},  Duration: #{timestamp},  Contains: #{results.values.count} work units"
   results.values.each_with_index do |trans, base|
-    puts "\t#{"%04d" % base} Work Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.count}"
+    puts "\t#{"%04d" % base} Work Unit: #{trans.class.name}, Message: #{trans.message}, Contains: #{trans.value.respond_to?(:count) ? trans.value.count : trans.value}"
     trans.value.each_with_index do |ele, unit|
       header_lines = 0
+      unless ele.respond_to?(:each_with_index)
+        puts "\t\t\tUnit:#{"%04d" % base}, Step:#{"%03d" % unit}~> Workflow #{ele.class.name}, Message: #{ele.message}, Contains: #{ele.value}"
+        next
+      end
       ele.each_with_index do |element, rep|
         if element.is_a?(Array)
           element.each_with_index do |wu,idx|        # 3 average
@@ -289,11 +298,11 @@ def result_formatter(results, timestamp, repeats, name)
   true
 end
 
-def run_with_callables(repeats = 1)
+def run_with_callables(repeats = 1, base_host_url=nil)
 
   commands =[
-      ->(repeats){WorkflowProcessor.({action: :authenticate, users: [], repeats: repeats, money: 100})},
-      ->(repeats){WorkflowProcessor.({action: :register, users: [], repeats: repeats, money: 100})}
+      ->(repeats){WorkflowProcessor.({action: :authenticate, users: [], repeats: repeats, money: 100, base_host_url: base_host_url})},
+      ->(repeats){WorkflowProcessor.({action: :register, users: [], repeats: repeats, money: 100, base_host_url: base_host_url})}
   ]
 
   # Initialize the queue with Async Workers by default
@@ -325,11 +334,11 @@ rescue => e
   $stderr.puts e.message, e.backtrace
 end
 
-def run_with_params(repeats = 1)
+def run_with_params(repeats = 1, base_host_url=nil)
 
   commands =[
-      {action: :authenticate, users: CommonElements.existing_users , repeats: repeats, money: 100},
-      {action: :register, users: CommonElements.new_users , repeats: repeats, money: 100}
+      {action: :authenticate, users: CommonElements.existing_users , repeats: repeats, money: 100, base_host_url: base_host_url},
+      {action: :register, users: CommonElements.new_users , repeats: repeats, money: 100, base_host_url: base_host_url}
   ]
 
   # Initialize the queue with Async Workers by default
@@ -349,12 +358,12 @@ end
 # ##
 # MainLine
 # ##
-#
+# $ bin/client_sequence 10 'http://localhost:8585'
 begin
   repeats = (ARGV[0] || "10").to_i
-
-  run_with_callables(repeats)
-  run_with_params(repeats)
+  base_host_url = ARGV[1] || ENV.fetch("JWT_HOST_URI","http://localhost:8585")
+  run_with_callables(repeats, base_host_url)
+  run_with_params(repeats, base_host_url)
 
 rescue => e
   $stderr.puts("Please ensure the Application is Started on Port: 8585.  Error: #{e.class.name}, Msg: #{e.message}")
