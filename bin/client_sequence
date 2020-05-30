@@ -123,9 +123,6 @@ class CommonElements
     @base_host_url = opts.fetch(:base_host_url, "http://localhost:8585")
     username = opts.fetch(:username, "emadmin")
     password = opts.fetch(:password, "emadmin pwd")
-
-    cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/authenticate"})
-    @admin_jwt_header = apply_authentication( execute_request(cmd) )
   end
 end
 
@@ -158,6 +155,8 @@ class WorkflowProcessor < CommonElements
       users = list_of_users  if action.to_s.eql?("all")
     end
 
+    cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/authenticate"})
+    @admin_jwt_header = apply_authentication( execute_request(cmd) )
 
     SknSuccess.(
       users.collect do |work|
