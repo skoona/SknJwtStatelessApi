@@ -30,7 +30,7 @@ class CommonElements
       {action: :authenticate, username: "emuser",     userpass: "emuser pwd" }
   ]
 
-  attr_reader :base_host_url, :admin_jwt_header
+  attr_reader :base_host_url, :admin_jwt_header, :admin_username, :admin_password
 
   def self.call(work, opts={})
     new(opts).call(work)
@@ -121,8 +121,8 @@ class CommonElements
   def initialize(opts={})
     @opts = opts
     @base_host_url = opts.fetch(:base_host_url, "http://localhost:8585")
-    username = opts.fetch(:username, "emadmin")
-    password = opts.fetch(:password, "emadmin pwd")
+    @admin_username = opts.fetch(:username, "emadmin")
+    @admin_password = opts.fetch(:password, "emadmin pwd")
   end
 end
 
@@ -155,7 +155,7 @@ class WorkflowProcessor < CommonElements
       users = list_of_users  if action.to_s.eql?("all")
     end
 
-    cmd = SknUtils::CommandJSONPost.call({username: username, userpass: password, full_url: "#{base_host_url}/authenticate"})
+    cmd = SknUtils::CommandJSONPost.call({username: admin_username, userpass: admin_password, full_url: "#{base_host_url}/authenticate"})
     @admin_jwt_header = apply_authentication( execute_request(cmd) )
 
     SknSuccess.(
