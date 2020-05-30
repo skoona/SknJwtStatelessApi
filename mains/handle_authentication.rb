@@ -13,8 +13,8 @@ module HandleAuthentication
     end
     res
   rescue => e
-    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
-    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{failure_lines(e)}")
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}, backtrace: #{failure_lines(e)}")
   end
 
   def register_user(env)
@@ -28,8 +28,8 @@ module HandleAuthentication
     end
     res
   rescue => e
-    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
-    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{failure_lines(e)}")
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}, backtrace: #{failure_lines(e)}")
   end
 
   def validate_user(env)
@@ -43,8 +43,8 @@ module HandleAuthentication
     end
     res # SknSuccess/SknFailure
   rescue => e
-    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
-    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{failure_lines(e)}")
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}, backtrace: #{failure_lines(e)}")
   end
 
   def extract_basic_auth(env)
@@ -77,6 +77,10 @@ module HandleAuthentication
             username: username
         }
     }
+  end
+
+  def failure_lines(e)
+    failures = e.backtrace.map {|x| x.split("/").last }.join(",")
   end
 
 end

@@ -32,8 +32,8 @@ module HandleStateless
     end
     res
   rescue => e
-    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
-    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}")
+    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{failure_lines(e)}")
+    SknFailure.({username: username, scopes: []}, "#{e.class.name} -> #{e.message}, backtrace: #{failure_lines(e)}")
   end
 
 
@@ -52,7 +52,7 @@ module HandleStateless
       req.halt [Rack::Utils.status_code(:forbidden), { 'Content-Type' => 'application/json' }, [{error: 'NotAuthorized', errorDetails: "You are not authorized to access: #{scope}"}.to_json]]
     end
   rescue => e
-    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{e.backtrace.first.to_s.split("/").last}")
+    SknApp.logger.warn("#{__method__}() Klass: #{e.class.name}, Msg: #{e.message}, backtrace: #{failure_lines(e)}")
     req.halt [Rack::Utils.status_code(:forbidden), { 'Content-Type' => 'application/json' }, [{error: e.class.name, errorDetails: e.message}.to_json]]
   end
 end

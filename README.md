@@ -185,7 +185,7 @@ ENV['JWT_SECRET'] = 'sknSuperSecrets'
     └── puma.state
 ```
 
-### Influence
+### Acknowledgements
 Inspired by ideas in this article by [Alex Sears](https://dzone.com/articles/ruby-authentication-secure-your-rack-application-w)
 
 

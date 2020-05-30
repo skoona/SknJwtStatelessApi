@@ -1,1 +1,21 @@
+title: SknJwtStatelessAPI
+email: skoona@gmail.com
+description: > # this means to ignore newlines until "baseurl:"
+  Ruby Secured API Example using JWTs and Roda `The Routing Tree Web Toolkit`.
+baseurl: ""
+url: https://skoona.github.io/SknJwtStatelessApi/
+twitter_username: JamesScottiii
+twitter:
+  username: jamesscottiii
+
 theme: jekyll-theme-cayman
+
+github_username:  skoona
+github:
+  username:  skoona
+
+# paginate:     1
+author:
+  name:       "James Scott, Jr. (a.k.a Skoona)"
+  url:        https://keybase.io/skoona
+
