@@ -14,7 +14,7 @@
 #
 
 require 'bundler/setup'
-require_relative '../config/version'
+require './config/version.rb' if File.exist?('./config/version.rb')
 require 'skn_utils'
 
 
@@ -69,16 +69,15 @@ class CommonElements
     {core: [view_cmd,add_cmd,delete_cmd], cleanup: [delete_all_cmd, view_cmd, users, stats]}
   end
 
-  def process(auth, repeats, money, unregister=nil, unreg_cmd=nil, update_roles=nil)
+  def process(auth_result, repeats, money, register_result=nil, unreg_cmd=nil, update_roles=nil)
     results = []
-    jwt_header = apply_authentication(auth)
+    jwt_header = apply_authentication(auth_result)
     work_plans = prepare_core_commands(jwt_header, money, repeats)
 
-    results = [auth]
-    if unregister.present?
+    results = [auth_result]
+    if register_result.present?
       work_plans[:cleanup].insert(-3, unreg_cmd)
-      results.unshift(unregister)
-      results.push(update_roles)
+      results = [register_result, update_roles, auth_result]
     end
 
     repeats.times do
